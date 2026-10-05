@@ -1,0 +1,70 @@
+/**
+ * Estilos de marca — Escuela de Conductores Futuro
+ *
+ * Todo lo decorativo que se repetía pegado en cada página (fuentes, animaciones,
+ * franjas de peligro y líneas de pavimento) vive acá, para usarlo igual en
+ * Inicio, DashboardAlumno, AgendamientoAdmin y las páginas que faltan
+ * (IniciarSesion, PanelInstructor, AutogestionClase).
+ *
+ * Importa este archivo UNA sola vez en src/main.jsx, después de index.css:
+ *   import './index.css'
+ *   import './styles/brand.css'
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap');
+
+/* Tipografías */
+.font-display { font-family: 'Kanit', 'Arial Narrow', sans-serif; }
+.font-body { font-family: 'Manrope', system-ui, sans-serif; }
+
+/* Animaciones de entrada (carrusel de cursos, tarjetas, etc.) */
+@keyframes drive-in {
+  from { opacity: 0; transform: translateX(-56px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: none; }
+}
+.anim-drive { animation: drive-in .65s cubic-bezier(.2, .8, .2, 1) both; }
+.anim-slide { animation: slide-in .5s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-drive, .anim-slide { animation: none; }
+}
+
+/* Franja de peligro (negro/amarillo) — header y footer */
+.stripe-hazard {
+  background-image: repeating-linear-gradient(
+    135deg,
+    #FFC400 0, #FFC400 18px,
+    #0D0D0D 18px, #0D0D0D 36px
+  );
+}
+
+/* Línea de carril central (amarilla punteada) — franja de pavimento */
+.stripe-lane {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #FFC400 0 28px,
+    transparent 28px 56px
+  );
+}
+
+/* Solera pintada (rojo/blanco) — borde inferior de la franja de pavimento */
+.stripe-curb {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #E31B23 0 16px,
+    #FAFAF8 16px 32px
+  );
+}
+
+/* Conector punteado entre pasos numerados (sección "Cómo funciona") */
+.stripe-connector {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #0D0D0D 0 6px,
+    transparent 6px 12px
+  );
+}

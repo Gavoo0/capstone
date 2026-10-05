@@ -9,9 +9,10 @@ import { Link } from "react-router-dom";
  * 1. Guarda este archivo como src/pages/Inicio.jsx (reemplaza el actual).
  * 2. No necesitas tocar tailwind.config.js: los colores van como valores arbitrarios (bg-[#...]),
  *    así el archivo funciona igual sin importar la config que ya tengas.
- * 3. Las tipografías (Kanit y Manrope) se cargan con un <style> embebido más abajo.
- *    Si luego quieres cargarlas una sola vez para todo el sitio, mueve el @import a tu index.css
- *    y borra el bloque <style> de aquí.
+ * 3. Las fuentes (Kanit/Manrope), las animaciones (.anim-drive, .anim-slide) y los patrones
+ *    decorativos (.stripe-hazard, .stripe-lane, .stripe-curb, .stripe-connector) están en
+ *    src/styles/brand.css, para reutilizarlos en el resto de las páginas. Impórtalo una sola
+ *    vez en src/main.jsx, después de './index.css'.
  */
 
 const SEDES = [
@@ -195,21 +196,8 @@ export default function Inicio() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF8] text-[#0D0D0D]">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap');
-        .font-display { font-family: 'Kanit', 'Arial Narrow', sans-serif; }
-        .font-body { font-family: 'Manrope', system-ui, sans-serif; }
-        @keyframes drive-in { from { opacity: 0; transform: translateX(-56px); } to { opacity: 1; transform: none; } }
-        @keyframes slide-in { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
-        .anim-drive { animation: drive-in .65s cubic-bezier(.2,.8,.2,1) both; }
-        .anim-slide { animation: slide-in .5s ease both; }
-        @media (prefers-reduced-motion: reduce) {
-          .anim-drive, .anim-slide { animation: none; }
-        }
-      `}</style>
-
       {/* Franja de peligro — único lugar donde se repite este patrón */}
-      <div className="h-2 w-full bg-[repeating-linear-gradient(135deg,#FFC400_0,#FFC400_18px,#0D0D0D_18px,#0D0D0D_36px)]" />
+      <div className="h-2 w-full stripe-hazard" />
 
       {/* Header */}
       <header className="sticky top-0 z-30 bg-[#0D0D0D]/95 backdrop-blur border-b border-white/10">
@@ -336,16 +324,8 @@ export default function Inicio() {
 
         {/* Franja de pavimento: línea de carril y solera pintada, como en las calles de Santiago */}
         <div className="relative h-14 md:h-16 bg-[#1E1E1B]">
-          <div
-            className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1.5"
-            style={{ backgroundImage: "repeating-linear-gradient(90deg,#FFC400 0 28px, transparent 28px 56px)" }}
-            aria-hidden="true"
-          />
-          <div
-            className="absolute inset-x-0 bottom-0 h-1.5"
-            style={{ backgroundImage: "repeating-linear-gradient(90deg,#E31B23 0 16px,#FAFAF8 16px 32px)" }}
-            aria-hidden="true"
-          />
+          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1.5 stripe-lane" aria-hidden="true" />
+          <div className="absolute inset-x-0 bottom-0 h-1.5 stripe-curb" aria-hidden="true" />
         </div>
       </section>
 
@@ -381,16 +361,8 @@ export default function Inicio() {
             <div className="relative rounded-md overflow-hidden bg-[#141412] aspect-[16/10] shadow-[0_24px_40px_-18px_rgba(0,0,0,0.55)]">
               <div className="absolute left-1/2 -translate-x-1/2 bottom-[24%] translate-y-1/2 w-[72%] aspect-square rounded-full bg-[#FFC400]" />
               <div className="absolute inset-x-0 bottom-0 h-[24%] bg-[#1E1E1B]" />
-              <div
-                className="absolute inset-x-0 bottom-[8%] h-1.5"
-                style={{ backgroundImage: "repeating-linear-gradient(90deg,#FFC400 0 28px, transparent 28px 56px)" }}
-                aria-hidden="true"
-              />
-              <div
-                className="absolute inset-x-0 bottom-0 h-1.5"
-                style={{ backgroundImage: "repeating-linear-gradient(90deg,#E31B23 0 16px,#FAFAF8 16px 32px)" }}
-                aria-hidden="true"
-              />
+              <div className="absolute inset-x-0 bottom-[8%] h-1.5 stripe-lane" aria-hidden="true" />
+              <div className="absolute inset-x-0 bottom-0 h-1.5 stripe-curb" aria-hidden="true" />
               <div className="absolute inset-x-[4%] bottom-[13%] anim-drive">
                 <Vehiculo tipo={CURSOS[cursoActivo].vehiculo} />
               </div>
@@ -516,8 +488,7 @@ export default function Inicio() {
               <p className="font-body mt-2 text-[#0D0D0D]/60">{etapa.detalle}</p>
               {i < ETAPAS.length - 1 && (
                 <div
-                  className="hidden md:block absolute top-8 -right-5 w-10 h-0.5"
-                  style={{ backgroundImage: "repeating-linear-gradient(90deg,#0D0D0D 0 6px,transparent 6px 12px)" }}
+                  className="hidden md:block absolute top-8 -right-5 w-10 h-0.5 stripe-connector"
                   aria-hidden="true"
                 />
               )}
@@ -707,7 +678,7 @@ export default function Inicio() {
             <p><a href="#contacto" className="hover:text-[#FFC400]">Contacto</a></p>
           </div>
         </div>
-        <div className="h-1.5 w-full bg-[repeating-linear-gradient(135deg,#FFC400_0,#FFC400_14px,#E31B23_14px,#E31B23_28px)]" />
+        <div className="h-1.5 w-full stripe-hazard" />
       </footer>
     </div>
   );
