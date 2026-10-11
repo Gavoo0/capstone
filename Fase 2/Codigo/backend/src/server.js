@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { pool, testConnection } = require('./config/db');
 
 const app = express();
@@ -34,6 +35,21 @@ app.get('/api/db-test', async (req, res) => {
             error: error.message
         });
     }
+});
+
+// Rutas de los controllers existentes.
+app.use('/api', require('./routes'));
+
+// Servir el frontend desde la misma dirección que la API.
+const frontendDist = path.resolve(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDist));
+
+// Permitir recargar las páginas de React sin interceptar rutas de la API.
+app.get('/{*splat}', (req, res, next) => {
+    if (req.path === '/api' || req.path.startsWith('/api/')) {
+        return next();
+    }
+    res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
 // Iniciar servidor y verificar conexión a MySQL
