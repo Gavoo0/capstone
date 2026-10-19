@@ -1,25 +1,78 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { iniciarSesion, ApiError } from "../services/api";
+import { guardarSesion, rutaPorRol } from "../services/sesion";
 
-/**
- * Iniciar sesión — Escuela de Conductores Futuro
- * Solo visual: el formulario no envía datos ni valida contra ningún backend todavía.
- * Conecta onSubmit cuando tengas el endpoint de autenticación.
- *
- * Guarda este archivo como src/pages/IniciarSesion.jsx.
- * Usa las fuentes y patrones de src/styles/brand.css (ver Inicio.jsx para cómo importarlo).
- */
+// Página de inicio de sesión
+// guarda la sesión y redirige al panel que corresponde según el rol del usuario.
 
-export default function IniciarSesion() {
+// Beneficios que se muestran en el panel de marca
+const BENEFICIOS = [
+  "Tu tarjeta de avance, siempre actualizada",
+  "Agenda y gestiona tus próximas clases",
+  "Credencial digital con código QR",
+];
+
+function IniciarSesion() {
+  const navigate = useNavigate();
+
+  // Campos del formulario
+  const [identificador, setIdentificador] = useState(""); // Correo o RUT
+  const [clave, setClave] = useState("");
   const [verClave, setVerClave] = useState(false);
   const [recordar, setRecordar] = useState(false);
+
+  const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(false);
+
+  const enviarFormulario = async (e) => {
+    e.preventDefault();
+
+    // Evitar enviar dos veces mientras se espera la respuesta
+    if (cargando) {
+      return;
+    }
+
+    // Validar que estén los dos campos
+    if (!identificador.trim() || !clave) {
+      setError("Ingresa tu correo o RUT y tu contraseña.");
+      return;
+    }
+
+    setError("");
+    setCargando(true);
+    try {
+      const { usuario } = await iniciarSesion(identificador.trim(), clave);
+
+      // Buscar el panel que corresponde al rol del usuario
+      const ruta = rutaPorRol(usuario.NOMBRE_ROL);
+      if (!ruta) {
+        setError("Tu cuenta no tiene un panel asignado. Contacta a la administración.");
+        return;
+      }
+
+      // Guardar la sesión y redirigir al panel
+      guardarSesion(usuario, recordar);
+      navigate(ruta);
+    } catch (err) {
+      // Se llama "err" para no confundirlo con el estado "error"
+      console.error("Error al iniciar sesión:", err);
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Ocurrió un error inesperado. Inténtalo nuevamente.");
+      }
+    } finally {
+      setCargando(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAFAF8] text-[#0D0D0D]">
       <div className="h-2 w-full stripe-hazard shrink-0" />
 
       <div className="flex-1 grid lg:grid-cols-2">
-        {/* Panel de marca — solo en pantallas grandes */}
+        {/* Panel de marca (solo en pantallas grandes) */}
         <div className="hidden lg:flex flex-col justify-between bg-[#0D0D0D] text-[#FAFAF8] px-14 py-12">
           <Link to="/" className="flex items-center gap-3 font-display text-xl">
             <img src="/logo/logo-nav.png" alt="" className="h-9 w-9 object-contain" />
@@ -35,11 +88,7 @@ export default function IniciarSesion() {
             </p>
 
             <ul className="font-body mt-8 space-y-4 text-sm">
-              {[
-                "Tu tarjeta de avance, siempre actualizada",
-                "Agenda y gestiona tus próximas clases",
-                "Credencial digital con código QR",
-              ].map((item) => (
+              {BENEFICIOS.map((item) => (
                 <li key={item} className="flex items-center gap-3">
                   <span className="w-6 h-6 rounded-full bg-[#FFC400] grid place-items-center shrink-0">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
@@ -55,7 +104,7 @@ export default function IniciarSesion() {
           <p className="font-body text-xs text-[#FAFAF8]/40">Macul y Peñalolén, Región Metropolitana.</p>
         </div>
 
-        {/* Formulario */}
+        {/* Formulario de inicio de sesión */}
         <div className="flex items-center justify-center px-6 py-12">
           <div className="w-full max-w-sm">
             <Link to="/" className="lg:hidden flex items-center gap-3 font-display text-lg mb-10">
@@ -70,7 +119,7 @@ export default function IniciarSesion() {
               Ingresa con tu correo o RUT y tu contraseña.
             </p>
 
-            <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
+            <form className="mt-6 space-y-4" onSubmit={enviarFormulario} noValidate>
               <div>
                 <label htmlFor="usuario" className="font-body text-sm text-[#0D0D0D]/70">
                   Correo o RUT
@@ -80,6 +129,8 @@ export default function IniciarSesion() {
                   type="text"
                   autoComplete="username"
                   placeholder="tucorreo@ejemplo.cl"
+                  value={identificador}
+                  onChange={(e) => setIdentificador(e.target.value)}
                   className="mt-1 w-full rounded-sm border border-black/15 px-3 py-2.5 font-body text-sm focus:outline-none focus:border-[#0D0D0D]"
                 />
               </div>
@@ -99,6 +150,8 @@ export default function IniciarSesion() {
                     type={verClave ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="••••••••"
+                    value={clave}
+                    onChange={(e) => setClave(e.target.value)}
                     className="w-full rounded-sm border border-black/15 px-3 py-2.5 pr-10 font-body text-sm focus:outline-none focus:border-[#0D0D0D]"
                   />
                   <button
@@ -133,11 +186,19 @@ export default function IniciarSesion() {
                 </label>
               </div>
 
+              {/* Mensaje de error */}
+              {error && (
+                <p role="alert" className="font-body rounded-sm border border-[#E31B23]/30 bg-[#E31B23]/5 px-3 py-2 text-sm text-[#E31B23]">
+                  {error}
+                </p>
+              )}
+
               <button
                 type="submit"
-                className="w-full rounded-sm bg-[#FFC400] text-[#0D0D0D] font-body font-semibold py-3 hover:bg-[#E6B000] transition-colors"
+                disabled={cargando}
+                className="w-full rounded-sm bg-[#FFC400] text-[#0D0D0D] font-body font-semibold py-3 hover:bg-[#E6B000] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Iniciar sesión
+                {cargando ? "Ingresando…" : "Iniciar sesión"}
               </button>
             </form>
 
@@ -158,3 +219,5 @@ export default function IniciarSesion() {
     </div>
   );
 }
+
+export default IniciarSesion;

@@ -6,6 +6,13 @@ const hashPassword = (password) => {
     return crypto.createHash('sha256').update(password).digest('hex');
 };
 
+// Compara dos hashes en tiempo constante, para no filtrar información por el tiempo de respuesta.
+const hashesIguales = (a, b) => {
+    const bufA = Buffer.from(String(a || ''));
+    const bufB = Buffer.from(String(b || ''));
+    return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+};
+
 const usuariosController = {
     // GET /api/usuarios
     async getAll(req, res) {
@@ -96,18 +103,21 @@ const usuariosController = {
     },
 
     // POST /api/usuarios/login
+    // Acepta { identificador, password }, donde identificador es un correo o un RUT.
+    // También sigue aceptando { email, password } para no romper llamadas anteriores.
     async login(req, res) {
         try {
-            const { email, password } = req.body;
+            const { password } = req.body;
+            const identificador = req.body.identificador ?? req.body.email;
 
-            if (!email || !password) {
+            if (!identificador || !password) {
                 return res.status(400).json({
                     error: 'Validación',
-                    mensaje: 'Debe ingresar email y contraseña.'
+                    mensaje: 'Debe ingresar su correo o RUT y su contraseña.'
                 });
             }
 
-            const usuario = await usuariosService.getByEmail(email.trim().toLowerCase());
+            const usuario = await usuariosService.getByIdentificador(String(identificador));
             if (!usuario) {
                 return res.status(401).json({
                     error: 'Autenticación',
@@ -122,8 +132,8 @@ const usuariosController = {
                 });
             }
 
-            const hashIngresado = hashPassword(password);
-            if (hashIngresado !== usuario.PASSWORD_HASH) {
+            const hashIngresado = hashPassword(String(password));
+            if (!hashesIguales(hashIngresado, usuario.PASSWORD_HASH)) {
                 return res.status(401).json({
                     error: 'Autenticación',
                     mensaje: 'Credenciales inválidas.'

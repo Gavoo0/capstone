@@ -68,3 +68,113 @@
     transparent 6px 12px
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Componentes reutilizables                                           */
+/* ------------------------------------------------------------------ */
+
+:root {
+  --negro: #0D0D0D;
+  --negro-suave: #1E1E1B;
+  --amarillo: #FFC400;
+  --amarillo-hover: #E6B000;
+  --rojo: #E31B23;
+  --blanco: #FAFAF8;
+}
+
+/* Botones */
+.btn-amarillo, .btn-negro, .btn-contorno, .btn-contorno-claro {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  border-radius: 2px; font-family: 'Manrope', system-ui, sans-serif; font-weight: 600;
+  padding: .75rem 1.5rem; transition: background-color .15s, color .15s, border-color .15s;
+}
+.btn-amarillo { background: var(--amarillo); color: var(--negro); }
+.btn-amarillo:hover { background: var(--amarillo-hover); }
+.btn-negro { background: var(--negro); color: var(--blanco); }
+.btn-negro:hover { background: var(--negro-suave); }
+.btn-contorno-claro { border: 1px solid rgb(255 255 255 / .3); color: var(--blanco); }
+.btn-contorno-claro:hover { border-color: var(--amarillo); color: var(--amarillo); }
+.btn-contorno { border: 2px solid var(--negro); color: var(--negro); }
+.btn-contorno:hover { background: var(--negro); color: var(--amarillo); }
+.btn-compacto { font-size: .875rem; padding: .5rem 1rem; }
+.btn-amarillo:disabled, .btn-negro:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Campos de formulario */
+.campo-etiqueta { font-family: 'Manrope', system-ui, sans-serif; font-size: .875rem; color: rgb(13 13 13 / .7); }
+.campo {
+  display: block; width: 100%; margin-top: .25rem; padding: .5rem .75rem; border-radius: 2px;
+  border: 1px solid rgb(0 0 0 / .15); background: #fff;
+  font-family: 'Manrope', system-ui, sans-serif; font-size: .875rem;
+}
+.campo:focus { outline: none; border-color: var(--negro); }
+
+/* Mensajes de estado */
+.aviso-error {
+  font-family: 'Manrope', system-ui, sans-serif; font-size: .875rem; color: var(--rojo);
+  border: 1px solid rgb(227 27 35 / .3); background: rgb(227 27 35 / .05);
+  border-radius: 2px; padding: .5rem .75rem;
+}
+.aviso-info {
+  font-family: 'Manrope', system-ui, sans-serif; font-size: .875rem; color: var(--negro);
+  border: 1px solid rgb(13 13 13 / .2); background: rgb(255 196 0 / .25);
+  border-radius: 2px; padding: .5rem .75rem;
+}
+
+/* Círculo con check de las listas */
+.check-circulo {
+  display: grid; place-items: center; flex-shrink: 0; border-radius: 9999px;
+  width: 1.25rem; height: 1.25rem; margin-top: .125rem; background: var(--negro);
+}
+
+/* Escenario del carrusel de cursos: el vehículo llega sobre el pavimento */
+.escena {
+  position: relative; overflow: hidden; border-radius: 6px; aspect-ratio: 16 / 10;
+  background: #141412; box-shadow: 0 24px 40px -18px rgb(0 0 0 / .55);
+}
+.escena-sol {
+  position: absolute; left: 50%; bottom: 24%; width: 72%; aspect-ratio: 1; border-radius: 9999px;
+  background: var(--amarillo); transform: translate(-50%, 50%);
+}
+.escena-asfalto { position: absolute; inset: auto 0 0 0; height: 24%; background: var(--negro-suave); }
+.escena-carril { position: absolute; inset: auto 0 8% 0; height: 6px; }
+.escena-solera { position: absolute; inset: auto 0 0 0; height: 6px; }
+.escena-vehiculo { position: absolute; inset: auto 4% 13% 4%; }
+.etiqueta-tipo {
+  position: absolute; top: 1rem; left: 1rem; padding: .25rem .75rem; border-radius: 9999px;
+  font-family: 'Manrope', system-ui, sans-serif; font-size: .75rem; font-weight: 600;
+}
+.etiqueta-particular { background: var(--blanco); color: var(--negro); }
+.etiqueta-profesional { background: var(--rojo); color: var(--blanco); }
+
+/* Barra de duración (Clase B) */
+.barra-duracion { display: flex; height: 2.25rem; overflow: hidden; border-radius: 2px; border: 2px solid var(--negro); }
+.barra-duracion > div { flex-basis: 0; display: grid; place-items: center; font-family: 'Kanit', sans-serif; font-size: .875rem; }
+.tono-psico { background: var(--negro); color: var(--amarillo); }
+.tono-teoria { background: var(--blanco); color: var(--negro); }
+.tono-practica { background: var(--rojo); color: var(--blanco); }
+.muestra-tono { display: inline-block; width: .75rem; height: .75rem; border-radius: 2px; border: 1px solid var(--negro); }
+
+/* Botones redondos del carrusel */
+.btn-redondo {
+  display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 9999px;
+  border: 2px solid var(--negro); transition: background-color .15s, color .15s;
+}
+.btn-redondo:hover { background: var(--negro); color: var(--amarillo); }
+.chip-curso {
+  font-family: 'Kanit', sans-serif; font-size: 1.125rem; padding: .5rem 1rem; border-radius: 2px;
+  border: 2px solid var(--negro); transition: background-color .15s;
+}
+.chip-curso:hover { background: rgb(13 13 13 / .1); }
+.chip-curso[aria-pressed="true"] { background: var(--negro); color: var(--amarillo); }
+
+/* Panel del hero y numeración de etapas */
+.panel-formacion { border: 2px solid var(--amarillo); border-radius: 6px; background: var(--negro); padding: 1.25rem 1.5rem; }
+.numero-etapa { font-family: 'Kanit', sans-serif; font-size: 3.75rem; color: var(--amarillo); -webkit-text-stroke: 1.5px var(--negro); }
+
+/* Tarjeta de sede y enlace subrayado */
+.tarjeta-sede { display: flex; gap: 1.25rem; padding: 2rem; border: 1px solid rgb(0 0 0 / .1); border-radius: 6px; }
+.enlace-subrayado {
+  font-weight: 600; text-decoration: underline; text-decoration-color: var(--amarillo);
+  text-decoration-thickness: 2px; text-underline-offset: 4px;
+}
+.enlace-subrayado:hover { text-decoration-color: var(--rojo); }

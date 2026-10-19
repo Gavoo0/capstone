@@ -90,6 +90,41 @@ const usuariosService = {
         return rows[0] || null;
     },
 
+    // Obtener usuario para el login a partir de un correo o de un RUT (incluye PASSWORD_HASH).
+    // El RUT se compara sin puntos, guiones ni espacios y sin distinguir mayúsculas, así
+    // "21.140.826-K", "21140826-k" y "21140826K" encuentran al mismo usuario sin importar
+    // cómo quedó guardado en la base.
+    async getByIdentificador(identificador) {
+        const valor = String(identificador || '').trim();
+        if (!valor) return null;
+
+        if (valor.includes('@')) {
+            return this.getByEmail(valor);
+        }
+
+        const rutNormalizado = valor.replace(/[.\-\s]/g, '').toLowerCase();
+        const query = `
+            SELECT
+                u.ID_USUARIO,
+                u.RUT,
+                u.NOMBRE,
+                u.APELLIDO,
+                u.EMAIL,
+                u.PASSWORD_HASH,
+                u.ID_ROL,
+                r.NOMBRE_ROL,
+                u.ID_SEDE,
+                s.NOMBRE AS NOMBRE_SEDE,
+                u.ESTADO_ACTIVO
+            FROM usuarios u
+            LEFT JOIN roles r ON u.ID_ROL = r.ID_ROL
+            LEFT JOIN sedes s ON u.ID_SEDE = s.ID_SEDE
+            WHERE REPLACE(REPLACE(REPLACE(LOWER(u.RUT), '.', ''), '-', ''), ' ', '') = ?
+        `;
+        const [rows] = await pool.query(query, [rutNormalizado]);
+        return rows[0] || null;
+    },
+
     // Obtener usuario por RUT
     async getByRut(rut) {
         const query = `
