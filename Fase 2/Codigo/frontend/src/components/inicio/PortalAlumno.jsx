@@ -1,4 +1,3 @@
-// Ejemplo ilustrativo de la tarjeta de avance (no son datos reales de ningún alumno).
 const AVANCE = [
   { nombre: "Psicotécnico", valor: "Aprobado", ancho: "100%", color: "bg-[#FFC400]" },
   { nombre: "Clases teóricas", valor: "8 / 10", ancho: "80%", color: "bg-[#FFC400]" },
