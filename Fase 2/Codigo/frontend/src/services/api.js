@@ -59,6 +59,24 @@ const peticion = async (ruta, { method = "GET", body } = {}) => {
   return datos;
 };
 
+// Agregar filtros a una ruta como query string, ignorando los que vienen vacíos
+// Ejemplo: conFiltros("/clases", { fecha: "2026-11-02", idSede: "" }) -> "/clases?fecha=2026-11-02"
+export const conFiltros = (ruta, filtros = {}) => {
+  const parametros = new URLSearchParams();
+  Object.entries(filtros).forEach(([clave, valor]) => {
+    if (valor !== undefined && valor !== null && valor !== "") {
+      parametros.append(clave, valor);
+    }
+  });
+
+  const texto = parametros.toString();
+  if (texto) {
+    return `${ruta}?${texto}`;
+  } else {
+    return ruta;
+  }
+};
+
 // Métodos para llamar a la API desde las páginas
 export const api = {
   get: (ruta) => peticion(ruta),
