@@ -1,75 +1,67 @@
 // Sesión del usuario en el navegador
 //
-// Guarda los datos del usuario que devuelve el login. Si marcó "Recordarme" se guardan en
+// Guarda los datos del usuario y el JWT que devuelve el login. Si marcó "Recordarme" se guardan en
 // localStorage (se mantienen al cerrar el navegador); si no, en sessionStorage (solo mientras
 // la pestaña siga abierta).
 //
 // Cada sesión se guarda con una fecha de vencimiento. Si ya venció, o si es una sesión guardada
 // con el formato antiguo (sin vencimiento), se borra y se pide iniciar sesión de nuevo.
 //
-// Importante: por ahora el backend no entrega un token, así que esto sirve para mostrar el
-// nombre y llevar al panel correcto, pero NO protege las rutas ni la API. Cuando el backend
-// entregue un token (JWT), también se guarda acá.
-
 const CLAVE = "futuro.sesion";
 
-// Duración de la sesión
 const HORA = 60 * 60 * 1000;
-const DURACION_NORMAL = 8 * HORA; // Sin "Recordarme": 8 horas
-const DURACION_RECORDAR = 7 * 24 * HORA; // Con "Recordarme": 7 días
+const DURACION_TOKEN = 8 * HORA; // Debe coincidir con la expiración JWT del backend
 
-export const guardarSesion = (usuario, recordar = false) => {
+export const guardarSesion = (usuario, token, recordar = false) => {
+  if (!usuario || !token) return false;
+
   try {
     // Elegir dónde guardar según "Recordarme" y limpiar el otro almacenamiento
     let destino;
     let otro;
-    let duracion;
     if (recordar) {
       destino = localStorage;
       otro = sessionStorage;
-      duracion = DURACION_RECORDAR;
     } else {
       destino = sessionStorage;
       otro = localStorage;
-      duracion = DURACION_NORMAL;
     }
 
     const sesion = {
       usuario,
-      expira: Date.now() + duracion, // Fecha en que vence la sesión
+      token,
+      expira: Date.now() + DURACION_TOKEN,
     };
 
     otro.removeItem(CLAVE);
     destino.setItem(CLAVE, JSON.stringify(sesion));
+    return true;
   } catch (error) {
-    // Almacenamiento bloqueado (modo privado, etc.): la app sigue funcionando sin recordar la sesión
     console.error("Error al guardar la sesión:", error);
+    return false;
   }
 };
 
-export const obtenerSesion = () => {
+const leerSesion = () => {
   try {
-    // Buscar primero en sessionStorage y después en localStorage
     const sesionGuardada = sessionStorage.getItem(CLAVE) ?? localStorage.getItem(CLAVE);
     if (!sesionGuardada) {
       return null;
     }
 
     const sesion = JSON.parse(sesionGuardada);
-
-    // Revisar que la sesión tenga el formato nuevo y que no esté vencida
-    if (sesion && sesion.usuario && sesion.expira > Date.now()) {
-      return sesion.usuario;
-    } else {
-      cerrarSesion(); // Sesión vencida o antigua: borrarla
-      return null;
-    }
+    if (sesion?.usuario && sesion?.token && sesion.expira > Date.now()) return sesion;
+    cerrarSesion();
+    return null;
   } catch (error) {
     console.error("Error al obtener la sesión:", error);
-    cerrarSesion(); // Si está dañada, borrarla para no quedar con una sesión inválida
+    cerrarSesion();
     return null;
   }
 };
+
+export const obtenerSesion = () => leerSesion()?.usuario ?? null;
+export const obtenerToken = () => leerSesion()?.token ?? null;
 
 export const cerrarSesion = () => {
   try {

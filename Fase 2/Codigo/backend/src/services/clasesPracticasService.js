@@ -122,6 +122,32 @@ const clasesPracticasService = {
         return rows[0] || null;
     },
 
+    async cambiarEstadoPorToken(token, estado, motivo = null) {
+        const [result] = await pool.query(
+            `UPDATE clases_practicas SET ESTADO = ?${motivo !== null ? ', OBSERVACIONES = ?' : ''}
+             WHERE TOKEN_AUTOGESTION = ? AND ESTADO = 'AGENDADA'`,
+            motivo !== null ? [estado, motivo, token] : [estado, token]
+        );
+        const clase = await this.getByToken(token);
+        return clase ? { clase, actualizada: result.affectedRows > 0 } : null;
+    },
+
+    async confirmarPorToken(token) {
+        const marcaConfirmacion = 'Asistencia confirmada por el alumno';
+        const [result] = await pool.query(
+            `UPDATE clases_practicas SET ESTADO = 'AGENDADA', OBSERVACIONES = ?
+             WHERE TOKEN_AUTOGESTION = ? AND ESTADO = 'AGENDADA'
+               AND COALESCE(OBSERVACIONES, '') <> ?`,
+            [marcaConfirmacion, token, marcaConfirmacion]
+        );
+        const clase = await this.getByToken(token);
+        return clase ? { clase, actualizada: result.affectedRows > 0 } : null;
+    },
+
+    async cancelarPorToken(token, motivo = 'Cancelada por el alumno') {
+        return this.cambiarEstadoPorToken(token, 'CANCELADA', motivo);
+    },
+
     // Validar disponibilidad de instructor y vehículo
     async verificarDisponibilidad({ idInstructor, idVehiculo, fecha, horaInicio, horaFin, idClaseExcluir = null }) {
         // 1. Conflicto con otra clase del instructor
@@ -129,7 +155,7 @@ const clasesPracticasService = {
             SELECT ID_CLASE FROM clases_practicas
             WHERE ID_INSTRUCTOR = ? 
               AND FECHA = ?
-              AND ESTADO = 'AGENDADA'
+              AND ESTADO IN ('AGENDADA', 'CONFIRMADA')
               AND HORA_INICIO < ?
               AND HORA_FIN > ?
         `;
@@ -158,7 +184,7 @@ const clasesPracticasService = {
             SELECT ID_CLASE FROM clases_practicas
             WHERE ID_VEHICULO = ? 
               AND FECHA = ?
-              AND ESTADO = 'AGENDADA'
+              AND ESTADO IN ('AGENDADA', 'CONFIRMADA')
               AND HORA_INICIO < ?
               AND HORA_FIN > ?
         `;

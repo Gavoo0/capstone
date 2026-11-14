@@ -118,7 +118,7 @@ const alumnosService = {
             `SELECT 
                 COUNT(*) AS total_clases,
                 SUM(CASE WHEN ESTADO = 'REALIZADA' THEN 1 ELSE 0 END) AS clases_completadas,
-                SUM(CASE WHEN ESTADO = 'AGENDADA' THEN 1 ELSE 0 END) AS clases_pendientes
+                SUM(CASE WHEN ESTADO IN ('AGENDADA', 'CONFIRMADA') THEN 1 ELSE 0 END) AS clases_pendientes
              FROM clases_practicas
              WHERE ID_ALUMNO = ?`,
             [idUsuario]

@@ -7,6 +7,10 @@ const { pool, testConnection } = require('./config/db');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    throw new Error('JWT_SECRET debe estar configurado y tener al menos 32 caracteres.');
+}
+
 // Middlewares
 app.use(cors());
 app.use(express.json());
@@ -32,13 +36,14 @@ app.get('/api/db-test', async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Error al consultar MySQL',
-            error: error.message
+            mensaje: 'No se pudo consultar la base de datos. Intente nuevamente.'
         });
     }
 });
 
 // Rutas de los controllers existentes.
 app.use('/api', require('./routes'));
+app.use('/api', (req, res) => res.status(404).json({ mensaje: 'La ruta solicitada no existe.' }));
 
 // Servir el frontend desde la misma dirección que la API.
 const frontendDist = path.resolve(__dirname, '../../frontend/dist');

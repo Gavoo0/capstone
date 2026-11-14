@@ -8,7 +8,7 @@ const alumnosController = {
             res.json(alumnos);
         } catch (error) {
             console.error('Error en alumnosController.getAll:', error);
-            res.status(500).json({ error: 'Error al obtener alumnos', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener alumnos', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -23,7 +23,7 @@ const alumnosController = {
             res.json(alumno);
         } catch (error) {
             console.error('Error en alumnosController.getByUsuarioId:', error);
-            res.status(500).json({ error: 'Error al obtener ficha de alumno', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener ficha de alumno', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -53,7 +53,7 @@ const alumnosController = {
             res.json(alumnoActualizado);
         } catch (error) {
             console.error('Error en alumnosController.updatePsicotecnico:', error);
-            res.status(500).json({ error: 'Error al actualizar examen psicotécnico', detalle: error.message });
+            res.status(500).json({ error: 'Error al actualizar examen psicotécnico', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -78,7 +78,7 @@ const alumnosController = {
             res.json(alumnoActualizado);
         } catch (error) {
             console.error('Error en alumnosController.updateAsistenciaTeorica:', error);
-            res.status(500).json({ error: 'Error al actualizar asistencia teórica', detalle: error.message });
+            res.status(500).json({ error: 'Error al actualizar asistencia teórica', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -90,7 +90,7 @@ const alumnosController = {
             res.json(resultado);
         } catch (error) {
             console.error('Error en alumnosController.checkHabilitado:', error);
-            res.status(500).json({ error: 'Error al verificar habilitación del alumno', detalle: error.message });
+            res.status(500).json({ error: 'Error al verificar habilitación del alumno', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -105,7 +105,7 @@ const alumnosController = {
             res.json(progreso);
         } catch (error) {
             console.error('Error en alumnosController.getProgreso:', error);
-            res.status(500).json({ error: 'Error al consultar progreso del alumno', detalle: error.message });
+            res.status(500).json({ error: 'Error al consultar progreso del alumno', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     }
 };

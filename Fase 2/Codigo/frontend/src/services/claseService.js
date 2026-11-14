@@ -30,8 +30,16 @@ export const confirmarClase = (id) => {
   return cambiarEstadoClase(id, "AGENDADA", MARCA_CONFIRMADA);
 };
 
+export const confirmarClasePorToken = (token) => {
+  return api.post(`/clases/autogestion/${encodeURIComponent(token)}/confirmar`);
+};
+
 export const cancelarClase = (id, motivo) => {
   return api.patch(`/clases/${id}/cancelar`, { motivo });
+};
+
+export const cancelarClasePorToken = (token, motivo) => {
+  return api.post(`/clases/autogestion/${encodeURIComponent(token)}/cancelar`, { motivo });
 };
 
 // Saber si el alumno ya confirmó una clase agendada

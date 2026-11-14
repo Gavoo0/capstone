@@ -13,7 +13,7 @@ const vehiculosController = {
             res.json(vehiculos);
         } catch (error) {
             console.error('Error en vehiculosController.getAll:', error);
-            res.status(500).json({ error: 'Error al obtener vehículos', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener vehículos', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -40,7 +40,7 @@ const vehiculosController = {
             res.json(disponibles);
         } catch (error) {
             console.error('Error en vehiculosController.getDisponibles:', error);
-            res.status(500).json({ error: 'Error al consultar vehículos disponibles', detalle: error.message });
+            res.status(500).json({ error: 'Error al consultar vehículos disponibles', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -55,7 +55,7 @@ const vehiculosController = {
             res.json(vehiculo);
         } catch (error) {
             console.error('Error en vehiculosController.getById:', error);
-            res.status(500).json({ error: 'Error al obtener vehículo', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener vehículo', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -70,7 +70,7 @@ const vehiculosController = {
             res.json(vehiculo);
         } catch (error) {
             console.error('Error en vehiculosController.getByPatente:', error);
-            res.status(500).json({ error: 'Error al buscar vehículo por patente', detalle: error.message });
+            res.status(500).json({ error: 'Error al buscar vehículo por patente', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -100,7 +100,7 @@ const vehiculosController = {
                 return res.status(409).json({ error: 'Duplicado', mensaje: 'Ya existe un vehículo registrado con esa patente.' });
             }
             console.error('Error en vehiculosController.create:', error);
-            res.status(500).json({ error: 'Error al registrar vehículo', detalle: error.message });
+            res.status(500).json({ error: 'Error al registrar vehículo', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -128,7 +128,7 @@ const vehiculosController = {
                 return res.status(409).json({ error: 'Duplicado', mensaje: 'La patente ingresada ya pertenece a otro vehículo.' });
             }
             console.error('Error en vehiculosController.update:', error);
-            res.status(500).json({ error: 'Error al actualizar vehículo', detalle: error.message });
+            res.status(500).json({ error: 'Error al actualizar vehículo', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -150,7 +150,7 @@ const vehiculosController = {
             res.json({ mensaje: `Estado del vehículo ${id} actualizado a ${estadoOperativo}.` });
         } catch (error) {
             console.error('Error en vehiculosController.updateEstado:', error);
-            res.status(500).json({ error: 'Error al cambiar estado operativo', detalle: error.message });
+            res.status(500).json({ error: 'Error al cambiar estado operativo', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -171,7 +171,7 @@ const vehiculosController = {
                 });
             }
             console.error('Error en vehiculosController.delete:', error);
-            res.status(500).json({ error: 'Error al eliminar vehículo', detalle: error.message });
+            res.status(500).json({ error: 'Error al eliminar vehículo', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     }
 };

@@ -83,7 +83,7 @@ const bloqueosFlotaService = {
                 ID_CLASE, ID_ALUMNO, ID_INSTRUCTOR, ID_VEHICULO, FECHA, HORA_INICIO, HORA_FIN, ESTADO
             FROM clases_practicas
             WHERE FECHA = ?
-              AND ESTADO = 'AGENDADA'
+              AND ESTADO IN ('AGENDADA', 'CONFIRMADA')
               AND HORA_INICIO < ?
               AND HORA_FIN > ?
               AND (ID_VEHICULO = ? ${idInstructor ? 'OR ID_INSTRUCTOR = ?' : ''})
@@ -125,6 +125,23 @@ const bloqueosFlotaService = {
 
     // Actualizar datos del bloqueo
     async update(idBloqueo, { idVehiculo, idInstructor, fecha, horaInicio, horaFin, motivo }) {
+        const actual = await this.getById(idBloqueo);
+        if (!actual) return null;
+
+        const nuevoBloqueo = {
+            idVehiculo: idVehiculo !== undefined ? idVehiculo : actual.ID_VEHICULO,
+            idInstructor: idInstructor !== undefined ? idInstructor : actual.ID_INSTRUCTOR,
+            fecha: fecha !== undefined ? fecha : actual.FECHA,
+            horaInicio: horaInicio !== undefined ? horaInicio : actual.HORA_INICIO,
+            horaFin: horaFin !== undefined ? horaFin : actual.HORA_FIN
+        };
+        const conflictos = await this.getClasesEnConflicto(nuevoBloqueo);
+        if (conflictos.length > 0) {
+            const error = new Error('No se puede actualizar el bloqueo: existen clases prácticas agendadas en este horario.');
+            error.conflictos = conflictos;
+            throw error;
+        }
+
         const fields = [];
         const values = [];
 

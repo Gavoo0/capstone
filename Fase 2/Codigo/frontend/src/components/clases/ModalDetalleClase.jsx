@@ -21,12 +21,6 @@ function ModalDetalleClase({ clase, mostrarAlerta, onCerrar, onCambio, permitirC
   const enlace = obtenerEnlaceAutogestion(clase);
   const esAgendada = clase.ESTADO === "AGENDADA";
 
-  // Mensaje para mandar por WhatsApp con el enlace de autogestión
-  const textoWhatsApp =
-    `Hola ${clase.NOMBRE_ALUMNO}, tienes una clase práctica agendada el ${formatearFechaLarga(clase.FECHA)} ` +
-    `de ${clase.HORA_INICIO} a ${clase.HORA_FIN} en la sede ${clase.NOMBRE_SEDE}. ` +
-    `Confirma o cancela tu asistencia aquí: ${enlace}`;
-
   const marcarEstado = async (estado, mensajeExito) => {
     setProcesando(true);
     try {
@@ -116,14 +110,6 @@ function ModalDetalleClase({ clase, mostrarAlerta, onCerrar, onCambio, permitirC
                 <button type="button" onClick={copiarEnlace} className="btn-contorno btn-compacto">
                   Copiar enlace
                 </button>
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent(textoWhatsApp)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-compacto inline-flex items-center rounded-sm bg-[#25D366] text-[#0D0D0D] font-semibold hover:brightness-95"
-                >
-                  Enviar por WhatsApp
-                </a>
               </div>
             </div>
           )}

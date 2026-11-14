@@ -42,7 +42,11 @@ function IniciarSesion() {
     setError("");
     setCargando(true);
     try {
-      const { usuario } = await iniciarSesion(identificador.trim(), clave);
+      const { usuario, token } = await iniciarSesion(identificador.trim(), clave);
+      if (!token) {
+        setError("El servidor no devolvió una sesión válida. Inténtalo nuevamente.");
+        return;
+      }
 
       // Buscar el panel que corresponde al rol del usuario
       const ruta = rutaPorRol(usuario.NOMBRE_ROL);
@@ -52,7 +56,10 @@ function IniciarSesion() {
       }
 
       // Guardar la sesión y redirigir al panel
-      guardarSesion(usuario, recordar);
+      if (!guardarSesion(usuario, token, recordar)) {
+        setError("No se pudo guardar la sesión en este navegador.");
+        return;
+      }
       navigate(ruta);
     } catch (err) {
       // Se llama "err" para no confundirlo con el estado "error"

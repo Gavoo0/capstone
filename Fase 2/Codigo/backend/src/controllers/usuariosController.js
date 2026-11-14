@@ -1,10 +1,9 @@
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 const { usuariosService, rolesService } = require('../services');
+const { createToken } = require('../middleware/auth');
 
-// Función auxiliar para hashear contraseñas con sha256 (o compatible)
-const hashPassword = (password) => {
-    return crypto.createHash('sha256').update(password).digest('hex');
-};
+const hashPassword = (password) => bcrypt.hash(password, 12);
 
 // Compara dos hashes en tiempo constante, para no filtrar información por el tiempo de respuesta.
 const hashesIguales = (a, b) => {
@@ -26,7 +25,7 @@ const usuariosController = {
             res.json(usuarios);
         } catch (error) {
             console.error('Error en usuariosController.getAll:', error);
-            res.status(500).json({ error: 'Error al obtener usuarios', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener usuarios', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -41,7 +40,7 @@ const usuariosController = {
             res.json(usuario);
         } catch (error) {
             console.error('Error en usuariosController.getById:', error);
-            res.status(500).json({ error: 'Error al obtener usuario', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener usuario', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -56,7 +55,7 @@ const usuariosController = {
             res.json(usuario);
         } catch (error) {
             console.error('Error en usuariosController.getByRut:', error);
-            res.status(500).json({ error: 'Error al buscar por RUT', detalle: error.message });
+            res.status(500).json({ error: 'Error al buscar por RUT', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -65,18 +64,21 @@ const usuariosController = {
         try {
             const { rut, nombre, apellido, email, password, idRol, idSede } = req.body;
 
-            if (!rut || !nombre || !apellido || !email || !password || !idRol) {
+            if (![rut, nombre, apellido, email, password].every((value) => typeof value === 'string' && value.trim()) || !idRol) {
                 return res.status(400).json({
                     error: 'Validación',
                     mensaje: 'Todos los campos obligatorios deben estar presentes (rut, nombre, apellido, email, password, idRol).'
                 });
+            }
+            if (Buffer.byteLength(password, 'utf8') > 72) {
+                return res.status(400).json({ mensaje: 'La contraseña no puede superar 72 bytes.' });
             }
 
             // Identificar si el rol corresponde a 'ALUMNO'
             const rol = await rolesService.getById(idRol);
             const esAlumno = rol && rol.NOMBRE_ROL.toUpperCase().includes('ALUMNO');
 
-            const passwordHash = hashPassword(password);
+            const passwordHash = await hashPassword(password);
 
             const nuevoUsuario = await usuariosService.create({
                 rut: rut.trim(),
@@ -98,7 +100,7 @@ const usuariosController = {
                 });
             }
             console.error('Error en usuariosController.create:', error);
-            res.status(500).json({ error: 'Error al crear usuario', detalle: error.message });
+            res.status(500).json({ error: 'Error al crear usuario', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -110,14 +112,14 @@ const usuariosController = {
             const { password } = req.body;
             const identificador = req.body.identificador ?? req.body.email;
 
-            if (!identificador || !password) {
+            if (typeof identificador !== 'string' || !identificador.trim() || typeof password !== 'string' || !password) {
                 return res.status(400).json({
                     error: 'Validación',
                     mensaje: 'Debe ingresar su correo o RUT y su contraseña.'
                 });
             }
 
-            const usuario = await usuariosService.getByIdentificador(String(identificador));
+            const usuario = await usuariosService.getByIdentificador(identificador.trim());
             if (!usuario) {
                 return res.status(401).json({
                     error: 'Autenticación',
@@ -132,12 +134,19 @@ const usuariosController = {
                 });
             }
 
-            const hashIngresado = hashPassword(String(password));
-            if (!hashesIguales(hashIngresado, usuario.PASSWORD_HASH)) {
+            const passwordIsLegacy = /^[a-f0-9]{64}$/i.test(usuario.PASSWORD_HASH);
+            const passwordValida = passwordIsLegacy
+                ? hashesIguales(crypto.createHash('sha256').update(password).digest('hex'), usuario.PASSWORD_HASH.toLowerCase())
+                : await bcrypt.compare(password, usuario.PASSWORD_HASH);
+            if (!passwordValida) {
                 return res.status(401).json({
                     error: 'Autenticación',
                     mensaje: 'Credenciales inválidas.'
                 });
+            }
+
+            if (passwordIsLegacy) {
+                await usuariosService.updatePassword(usuario.ID_USUARIO, await hashPassword(password));
             }
 
             // Sanitizar respuesta (no enviar contraseña hasheada)
@@ -145,11 +154,12 @@ const usuariosController = {
 
             res.json({
                 mensaje: 'Inicio de sesión exitoso',
-                usuario: datosUsuario
+                usuario: datosUsuario,
+                token: createToken(usuario)
             });
         } catch (error) {
             console.error('Error en usuariosController.login:', error);
-            res.status(500).json({ error: 'Error durante el inicio de sesión', detalle: error.message });
+            res.status(500).json({ error: 'Error durante el inicio de sesión', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -179,7 +189,7 @@ const usuariosController = {
                 return res.status(409).json({ error: 'Duplicado', mensaje: 'El RUT o correo ingresado ya pertenece a otro usuario.' });
             }
             console.error('Error en usuariosController.update:', error);
-            res.status(500).json({ error: 'Error al actualizar usuario', detalle: error.message });
+            res.status(500).json({ error: 'Error al actualizar usuario', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -201,7 +211,7 @@ const usuariosController = {
             res.json({ mensaje: `Estado del usuario ${id} actualizado a ${activo ? 'ACTIVO' : 'INACTIVO'}.` });
         } catch (error) {
             console.error('Error en usuariosController.toggleEstado:', error);
-            res.status(500).json({ error: 'Error al cambiar estado de usuario', detalle: error.message });
+            res.status(500).json({ error: 'Error al cambiar estado de usuario', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -211,11 +221,14 @@ const usuariosController = {
             const { id } = req.params;
             const { newPassword } = req.body;
 
-            if (!newPassword || newPassword.length < 6) {
+            if (typeof newPassword !== 'string' || newPassword.length < 6) {
                 return res.status(400).json({ error: 'Validación', mensaje: 'La contraseña debe tener al menos 6 caracteres.' });
             }
+            if (Buffer.byteLength(newPassword, 'utf8') > 72) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'La contraseña no puede superar 72 bytes.' });
+            }
 
-            const hash = hashPassword(newPassword);
+            const hash = await hashPassword(newPassword);
             const ok = await usuariosService.updatePassword(id, hash);
             if (!ok) {
                 return res.status(404).json({ error: 'No encontrado', mensaje: `El usuario con ID ${id} no existe.` });
@@ -224,7 +237,7 @@ const usuariosController = {
             res.json({ mensaje: 'Contraseña actualizada correctamente.' });
         } catch (error) {
             console.error('Error en usuariosController.updatePassword:', error);
-            res.status(500).json({ error: 'Error al actualizar contraseña', detalle: error.message });
+            res.status(500).json({ error: 'Error al actualizar contraseña', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -245,7 +258,7 @@ const usuariosController = {
                 });
             }
             console.error('Error en usuariosController.delete:', error);
-            res.status(500).json({ error: 'Error al eliminar usuario', detalle: error.message });
+            res.status(500).json({ error: 'Error al eliminar usuario', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     }
 };

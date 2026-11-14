@@ -7,7 +7,7 @@ const pool = mysql.createPool({
     port: Number(process.env.DB_PORT) || 3306,
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'escuela_futuro_db',
+    database: process.env.DB_NAME || 'escuela_conductores',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -17,7 +17,7 @@ const pool = mysql.createPool({
 const testConnection = async () => {
     try {
         const connection = await pool.getConnection();
-        console.log('Conexión exitosa a la base de datos MySQL:', process.env.DB_NAME || 'escuela_futuro_db');
+        console.log('Conexión exitosa a la base de datos MySQL:', process.env.DB_NAME || 'escuela_conductores');
         connection.release();
         return true;
     } catch (error) {

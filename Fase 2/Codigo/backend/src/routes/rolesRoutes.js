@@ -1,5 +1,8 @@
 const router = require('express').Router();
 const controller = require('../controllers/rolesController');
+const { authorizeRoles } = require('../middleware/auth');
+
+router.use(authorizeRoles('ADMINISTRADOR'));
 
 router.get('/', controller.getAll);
 router.get('/:id', controller.getById);

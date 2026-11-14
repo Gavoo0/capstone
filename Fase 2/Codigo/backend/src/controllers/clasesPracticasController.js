@@ -8,7 +8,7 @@ const clasesPracticasController = {
             const clases = await clasesPracticasService.getAll({
                 idSede: idSede ? Number(idSede) : undefined,
                 idAlumno: idAlumno ? Number(idAlumno) : undefined,
-                idInstructor: idInstructor ? Number(idInstructor) : undefined,
+                idInstructor: req.instructorScopeId ?? (idInstructor ? Number(idInstructor) : undefined),
                 idVehiculo: idVehiculo ? Number(idVehiculo) : undefined,
                 fecha,
                 fechaDesde,
@@ -18,7 +18,7 @@ const clasesPracticasController = {
             res.json(clases);
         } catch (error) {
             console.error('Error en clasesPracticasController.getAll:', error);
-            res.status(500).json({ error: 'Error al obtener clases prácticas', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener clases prácticas', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -33,7 +33,7 @@ const clasesPracticasController = {
             res.json(clase);
         } catch (error) {
             console.error('Error en clasesPracticasController.getById:', error);
-            res.status(500).json({ error: 'Error al obtener clase práctica', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener clase práctica', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -51,7 +51,31 @@ const clasesPracticasController = {
             res.json(clase);
         } catch (error) {
             console.error('Error en clasesPracticasController.getByToken:', error);
-            res.status(500).json({ error: 'Error al consultar autogestión de clase', detalle: error.message });
+            res.status(500).json({ error: 'Error al consultar autogestión de clase', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
+        }
+    },
+
+    async confirmarPorToken(req, res) {
+        try {
+            const resultado = await clasesPracticasService.confirmarPorToken(req.params.token);
+            if (!resultado) return res.status(404).json({ mensaje: 'No se encontró una clase para este enlace.' });
+            if (!resultado.actualizada) return res.status(409).json({ mensaje: 'La clase ya fue confirmada, cancelada o realizada.' });
+            return res.json({ mensaje: 'Clase confirmada correctamente.', clase: resultado.clase });
+        } catch (error) {
+            console.error('Error al confirmar clase por token:', error);
+            return res.status(500).json({ mensaje: 'No se pudo confirmar la clase. Intente nuevamente.' });
+        }
+    },
+
+    async cancelarPorToken(req, res) {
+        try {
+            const resultado = await clasesPracticasService.cancelarPorToken(req.params.token, req.body?.motivo);
+            if (!resultado) return res.status(404).json({ mensaje: 'No se encontró una clase para este enlace.' });
+            if (!resultado.actualizada) return res.status(409).json({ mensaje: 'La clase ya fue confirmada, cancelada o realizada.' });
+            return res.json({ mensaje: 'Clase cancelada correctamente.', clase: resultado.clase });
+        } catch (error) {
+            console.error('Error al cancelar clase por token:', error);
+            return res.status(500).json({ mensaje: 'No se pudo cancelar la clase. Intente nuevamente.' });
         }
     },
 
@@ -89,7 +113,7 @@ const clasesPracticasController = {
                 });
             }
             console.error('Error en clasesPracticasController.agendar:', error);
-            res.status(500).json({ error: 'Error al agendar clase práctica', detalle: error.message });
+            res.status(500).json({ error: 'Error al agendar clase práctica', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -111,7 +135,7 @@ const clasesPracticasController = {
             res.json(claseActualizada);
         } catch (error) {
             console.error('Error en clasesPracticasController.cambiarEstado:', error);
-            res.status(500).json({ error: 'Error al cambiar estado de clase', detalle: error.message });
+            res.status(500).json({ error: 'Error al cambiar estado de clase', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -129,7 +153,7 @@ const clasesPracticasController = {
             res.json({ mensaje: 'Clase cancelada exitosamente.', clase: claseCancelada });
         } catch (error) {
             console.error('Error en clasesPracticasController.cancelar:', error);
-            res.status(500).json({ error: 'Error al cancelar clase', detalle: error.message });
+            res.status(500).json({ error: 'Error al cancelar clase', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -156,7 +180,7 @@ const clasesPracticasController = {
                 });
             }
             console.error('Error en clasesPracticasController.reprogramar:', error);
-            res.status(500).json({ error: 'Error al reprogramar clase', detalle: error.message });
+            res.status(500).json({ error: 'Error al reprogramar clase', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     }
 };

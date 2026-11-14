@@ -7,14 +7,14 @@ const asistenciasTeoricasController = {
             const { idAlumno, idInstructor, fecha, estado } = req.query;
             const asistencias = await asistenciasTeoricasService.getAll({
                 idAlumno: idAlumno ? Number(idAlumno) : undefined,
-                idInstructor: idInstructor ? Number(idInstructor) : undefined,
+                idInstructor: req.instructorScopeId ?? (idInstructor ? Number(idInstructor) : undefined),
                 fecha,
                 estado
             });
             res.json(asistencias);
         } catch (error) {
             console.error('Error en asistenciasTeoricasController.getAll:', error);
-            res.status(500).json({ error: 'Error al obtener asistencias teóricas', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener asistencias teóricas', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -26,7 +26,7 @@ const asistenciasTeoricasController = {
             res.json(asistencias);
         } catch (error) {
             console.error('Error en asistenciasTeoricasController.getByAlumno:', error);
-            res.status(500).json({ error: 'Error al obtener asistencias del alumno', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener asistencias del alumno', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -53,7 +53,7 @@ const asistenciasTeoricasController = {
             res.status(201).json(nuevaAsistencia);
         } catch (error) {
             console.error('Error en asistenciasTeoricasController.create:', error);
-            res.status(500).json({ error: 'Error al registrar asistencia teórica', detalle: error.message });
+            res.status(500).json({ error: 'Error al registrar asistencia teórica', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -80,7 +80,7 @@ const asistenciasTeoricasController = {
             });
         } catch (error) {
             console.error('Error en asistenciasTeoricasController.registrarMasiva:', error);
-            res.status(500).json({ error: 'Error al registrar asistencia masiva', detalle: error.message });
+            res.status(500).json({ error: 'Error al registrar asistencia masiva', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -95,7 +95,7 @@ const asistenciasTeoricasController = {
             res.json({ mensaje: `Asistencia con ID ${id} eliminada y porcentaje recalculado.` });
         } catch (error) {
             console.error('Error en asistenciasTeoricasController.delete:', error);
-            res.status(500).json({ error: 'Error al eliminar asistencia', detalle: error.message });
+            res.status(500).json({ error: 'Error al eliminar asistencia', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     }
 };
