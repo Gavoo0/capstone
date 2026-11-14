@@ -8,7 +8,7 @@ const sedesController = {
             res.json(sedes);
         } catch (error) {
             console.error('Error en sedesController.getAll:', error);
-            res.status(500).json({ error: 'Error al obtener sedes', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener sedes', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -23,7 +23,7 @@ const sedesController = {
             res.json(sede);
         } catch (error) {
             console.error('Error en sedesController.getById:', error);
-            res.status(500).json({ error: 'Error al obtener sede', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener sede', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -42,7 +42,7 @@ const sedesController = {
             res.status(201).json(nuevaSede);
         } catch (error) {
             console.error('Error en sedesController.create:', error);
-            res.status(500).json({ error: 'Error al crear sede', detalle: error.message });
+            res.status(500).json({ error: 'Error al crear sede', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -60,7 +60,7 @@ const sedesController = {
             res.json(sedeActualizada);
         } catch (error) {
             console.error('Error en sedesController.update:', error);
-            res.status(500).json({ error: 'Error al actualizar sede', detalle: error.message });
+            res.status(500).json({ error: 'Error al actualizar sede', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -81,7 +81,7 @@ const sedesController = {
                 });
             }
             console.error('Error en sedesController.delete:', error);
-            res.status(500).json({ error: 'Error al eliminar sede', detalle: error.message });
+            res.status(500).json({ error: 'Error al eliminar sede', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -93,7 +93,7 @@ const sedesController = {
             res.json(vehiculos);
         } catch (error) {
             console.error('Error en sedesController.getVehiculos:', error);
-            res.status(500).json({ error: 'Error al obtener vehículos de la sede', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener vehículos de la sede', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -105,7 +105,7 @@ const sedesController = {
             res.json(personal);
         } catch (error) {
             console.error('Error en sedesController.getPersonal:', error);
-            res.status(500).json({ error: 'Error al obtener personal de la sede', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener personal de la sede', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     }
 };

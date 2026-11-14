@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { fetchClasePorToken, confirmarClase, cancelarClase, estaConfirmada } from "../services/claseService";
+import { fetchClasePorToken, confirmarClasePorToken, cancelarClasePorToken, estaConfirmada } from "../services/claseService";
 import { fechaParaInput, fechaHoy, formatearFechaLarga } from "../utils/fechas";
 
-// Página del enlace que le llega al alumno por WhatsApp para confirmar o cancelar su clase
+// Página pública para confirmar o cancelar una clase mediante un token personal
 // Ejemplo: /alumno/autogestion-clase?token=abc-123
 function AutogestionClase() {
   const [parametros] = useSearchParams();
@@ -43,7 +43,7 @@ function AutogestionClase() {
   const handleConfirmar = async () => {
     setProcesando(true);
     try {
-      await confirmarClase(clase.ID_CLASE);
+      await confirmarClasePorToken(token);
       setMensajeResultado("¡Gracias! Confirmaste tu asistencia. Te esperamos.");
       setRecargar(recargar + 1);
     } catch (error) {
@@ -57,7 +57,7 @@ function AutogestionClase() {
   const handleCancelar = async () => {
     setProcesando(true);
     try {
-      await cancelarClase(clase.ID_CLASE, "Cancelada por el alumno desde el enlace de autogestión");
+      await cancelarClasePorToken(token, "Cancelada por el alumno desde el enlace de autogestión");
       setMensajeResultado("Tu clase fue cancelada y la hora quedó disponible para otro alumno.");
       setConfirmandoCancelar(false);
       setRecargar(recargar + 1);

@@ -1,8 +1,10 @@
 const router = require('express').Router();
 const controller = require('../controllers/usuariosController');
+const { authenticate, authorizeRoles } = require('../middleware/auth');
 
-router.get('/rut/:rut', controller.getByRut);
 router.post('/login', controller.login);
+router.use(authenticate, authorizeRoles('ADMINISTRADOR'));
+router.get('/rut/:rut', controller.getByRut);
 router.patch('/:id/estado', controller.toggleEstado);
 router.patch('/:id/password', controller.updatePassword);
 router.get('/', controller.getAll);

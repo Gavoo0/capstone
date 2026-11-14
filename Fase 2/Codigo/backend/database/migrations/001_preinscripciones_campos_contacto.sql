@@ -1,0 +1,10 @@
+USE escuela_conductores;
+
+-- Aplicar una vez si la tabla ya existía con el formato anterior de contacto/sede.
+ALTER TABLE preinscripciones
+    ADD COLUMN RUT VARCHAR(12) NULL,
+    ADD COLUMN CORREO VARCHAR(150) NULL,
+    ADD COLUMN TELEFONO VARCHAR(20) NULL,
+    ADD COLUMN ID_SEDE INT NULL,
+    ADD CONSTRAINT FK_PREINSCRIPCION_SEDE FOREIGN KEY (ID_SEDE)
+        REFERENCES sedes (ID_SEDE) ON DELETE RESTRICT ON UPDATE CASCADE;

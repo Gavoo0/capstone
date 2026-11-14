@@ -1,35 +1,23 @@
-﻿version: '3.8'
 services:
   database:
-    image: postgres:15-alpine
-    container_name: futuro_postgres_db
-    restart: always
+    image: mysql:8.0
+    container_name: futuro_mysql_db
+    restart: unless-stopped
+    command: --lower_case_table_names=1
     environment:
-      POSTGRES_USER: admin_futuro
-      POSTGRES_PASSWORD: FuturoSecurePassword2026!
-      POSTGRES_DB: escuela_futuro_db
+      # shortcut: root sin contraseña solo para desarrollo local; configura credenciales seguras al desplegar.
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: escuela_conductores
     ports:
-      - "5432:5432"
+      - "127.0.0.1:3307:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d
-    networks:
-      - futuro_network
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: futuro_pgadmin
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@futuro.cl
-      PGADMIN_DEFAULT_PASSWORD: AdminPassword2026!
-    ports:
-      - "5050:80"
-    depends_on:
-      - database
-    networks:
-      - futuro_network
+      - mysql_data:/var/lib/mysql
+      - ./backend/database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
 volumes:
-  postgres_data:
-networks:
-  futuro_network:
-    driver: bridge
+  mysql_data:

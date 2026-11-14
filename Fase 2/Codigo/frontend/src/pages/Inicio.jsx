@@ -50,7 +50,7 @@ const correoValido = (texto) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(texto.trim());
 };
 
-// Validar celular chileno: 9 dígitos que parten con 9 (los recordatorios llegan por WhatsApp)
+// Validar celular chileno: 9 dígitos que parten con 9
 const celularValido = (texto) => {
   let numeros = texto.replace(/\D/g, ""); // Dejar solo los números
   if (numeros.startsWith("56")) {
@@ -472,7 +472,7 @@ function Inicio() {
               <input id="correo" type="email" className="campo" placeholder="tucorreo@ejemplo.cl" value={correo} onChange={(e) => setCorreo(e.target.value)} />
             </div>
             <div>
-              <label htmlFor="telefono" className="campo-etiqueta">Celular (WhatsApp)</label>
+              <label htmlFor="telefono" className="campo-etiqueta">Celular</label>
               <input id="telefono" type="tel" className="campo" placeholder="912345678" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
             </div>
             <div>

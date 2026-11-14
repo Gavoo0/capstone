@@ -15,7 +15,7 @@ const bloqueosFlotaController = {
             res.json(bloqueos);
         } catch (error) {
             console.error('Error en bloqueosFlotaController.getAll:', error);
-            res.status(500).json({ error: 'Error al obtener bloqueos de flota', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener bloqueos de flota', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -30,7 +30,7 @@ const bloqueosFlotaController = {
             res.json(bloqueo);
         } catch (error) {
             console.error('Error en bloqueosFlotaController.getById:', error);
-            res.status(500).json({ error: 'Error al obtener bloqueo', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener bloqueo', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -65,7 +65,7 @@ const bloqueosFlotaController = {
                 });
             }
             console.error('Error en bloqueosFlotaController.create:', error);
-            res.status(500).json({ error: 'Error al crear bloqueo', detalle: error.message });
+            res.status(500).json({ error: 'Error al crear bloqueo', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -90,8 +90,11 @@ const bloqueosFlotaController = {
 
             res.json(bloqueoActualizado);
         } catch (error) {
+            if (error.conflictos) {
+                return res.status(409).json({ error: 'Conflicto de agenda', mensaje: error.message, clasesAfectadas: error.conflictos });
+            }
             console.error('Error en bloqueosFlotaController.update:', error);
-            res.status(500).json({ error: 'Error al actualizar bloqueo', detalle: error.message });
+            res.status(500).json({ error: 'Error al actualizar bloqueo', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -106,7 +109,7 @@ const bloqueosFlotaController = {
             res.json({ mensaje: `Bloqueo con ID ${id} levantado correctamente.` });
         } catch (error) {
             console.error('Error en bloqueosFlotaController.delete:', error);
-            res.status(500).json({ error: 'Error al eliminar bloqueo', detalle: error.message });
+            res.status(500).json({ error: 'Error al eliminar bloqueo', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     }
 };

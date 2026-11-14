@@ -17,7 +17,7 @@ function App() {
         <Route path="/" element={<Inicio />} />
         <Route path="/iniciar-sesion" element={<IniciarSesion />} />
 
-        {/* Ruta del enlace de autogestión que llega por WhatsApp (no necesita sesión) */}
+        {/* Ruta pública de autogestión por token (no necesita sesión) */}
         <Route path="/alumno/autogestion-clase" element={<AutogestionClase />} />
 
         {/* Rutas privadas de cada panel según el rol */}

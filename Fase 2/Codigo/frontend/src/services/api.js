@@ -7,6 +7,8 @@
 // Todas las páginas deben usar este archivo en vez de llamar a fetch directamente,
 // así el manejo de errores y la dirección del servidor quedan en un solo lugar.
 
+import { cerrarSesion, obtenerToken } from "./sesion";
+
 const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 // Error con un mensaje listo para mostrarle al usuario
@@ -19,12 +21,14 @@ export class ApiError extends Error {
 }
 
 const peticion = async (ruta, { method = "GET", body } = {}) => {
-  // Armar la configuración de la petición (solo se manda JSON si hay body)
+  const token = obtenerToken();
   const opciones = { method };
+  opciones.headers = {};
   if (body !== undefined) {
-    opciones.headers = { "Content-Type": "application/json" };
+    opciones.headers["Content-Type"] = "application/json";
     opciones.body = JSON.stringify(body);
   }
+  if (token) opciones.headers.Authorization = `Bearer ${token}`;
 
   // Llamar al backend
   let respuesta;
@@ -52,6 +56,10 @@ const peticion = async (ruta, { method = "GET", body } = {}) => {
       mensaje = datos.mensaje;
     } else if (respuesta.status >= 500) {
       mensaje = "El servidor no está disponible en este momento. Inténtalo en unos minutos.";
+    }
+    if (respuesta.status === 401 && token) {
+      cerrarSesion();
+      window.location.assign("/iniciar-sesion");
     }
     throw new ApiError(mensaje, respuesta.status);
   }
@@ -86,7 +94,7 @@ export const api = {
   delete: (ruta) => peticion(ruta, { method: "DELETE" }),
 };
 
-// Iniciar sesión con correo o RUT (devuelve { mensaje, usuario })
+// Iniciar sesión con correo o RUT (devuelve { mensaje, usuario, token })
 export const iniciarSesion = (identificador, password) => {
   return api.post("/usuarios/login", { identificador, password });
 };

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { obtenerSesion } from "../services/sesion";
 import { fetchProgreso, obtenerEtiquetaPsicotecnico, ASISTENCIA_MINIMA } from "../services/alumnoService";
-import { fetchClases, confirmarClase, cancelarClase, estaConfirmada, obtenerEtiquetaClase } from "../services/claseService";
+import { fetchClases, confirmarClasePorToken, cancelarClasePorToken, estaConfirmada, obtenerEtiquetaClase } from "../services/claseService";
 import { fetchAsistenciasAlumno } from "../services/asistenciaService";
 import { fetchEvaluacionesAlumno, formatearNota } from "../services/evaluacionService";
 import { fechaParaInput, fechaHoy, formatearFecha, formatearFechaLarga, formatearDiaCorto } from "../utils/fechas";
@@ -82,7 +82,7 @@ function DashboardAlumno() {
   const handleConfirmar = async (clase) => {
     setProcesando(true);
     try {
-      await confirmarClase(clase.ID_CLASE);
+      await confirmarClasePorToken(clase.TOKEN_AUTOGESTION);
       mostrarAlerta("success", "¡Listo! Confirmaste tu asistencia");
       setRecargar(recargar + 1);
     } catch (error) {
@@ -96,7 +96,7 @@ function DashboardAlumno() {
   const handleCancelar = async (clase) => {
     setProcesando(true);
     try {
-      await cancelarClase(clase.ID_CLASE, "Cancelada por el alumno");
+      await cancelarClasePorToken(clase.TOKEN_AUTOGESTION, "Cancelada por el alumno");
       mostrarAlerta("success", "Clase cancelada: el cupo quedó libre para otro alumno");
       setIdCancelando(null);
       setRecargar(recargar + 1);

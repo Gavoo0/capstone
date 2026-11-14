@@ -156,7 +156,7 @@ const vehiculosService = {
                 SELECT cp.ID_VEHICULO 
                 FROM clases_practicas cp
                 WHERE cp.FECHA = ?
-                  AND cp.ESTADO = 'AGENDADA'
+                  AND cp.ESTADO IN ('AGENDADA', 'CONFIRMADA')
                   AND cp.HORA_INICIO < ?
                   AND cp.HORA_FIN > ?
             )

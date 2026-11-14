@@ -7,7 +7,7 @@ const evaluacionesController = {
             const { idAlumno, idInstructor, tipoEvaluacion, fechaDesde, fechaHasta } = req.query;
             const evaluaciones = await evaluacionesService.getAll({
                 idAlumno: idAlumno ? Number(idAlumno) : undefined,
-                idInstructor: idInstructor ? Number(idInstructor) : undefined,
+                idInstructor: req.instructorScopeId ?? (idInstructor ? Number(idInstructor) : undefined),
                 tipoEvaluacion,
                 fechaDesde,
                 fechaHasta
@@ -15,7 +15,7 @@ const evaluacionesController = {
             res.json(evaluaciones);
         } catch (error) {
             console.error('Error en evaluacionesController.getAll:', error);
-            res.status(500).json({ error: 'Error al obtener evaluaciones', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener evaluaciones', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -30,7 +30,7 @@ const evaluacionesController = {
             res.json(evaluacion);
         } catch (error) {
             console.error('Error en evaluacionesController.getById:', error);
-            res.status(500).json({ error: 'Error al obtener evaluación', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener evaluación', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -42,7 +42,7 @@ const evaluacionesController = {
             res.json(evaluaciones);
         } catch (error) {
             console.error('Error en evaluacionesController.getByAlumno:', error);
-            res.status(500).json({ error: 'Error al obtener evaluaciones del alumno', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener evaluaciones del alumno', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -54,7 +54,7 @@ const evaluacionesController = {
             res.json(informe);
         } catch (error) {
             console.error('Error en evaluacionesController.getInformeRendimiento:', error);
-            res.status(500).json({ error: 'Error al obtener informe de rendimiento', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener informe de rendimiento', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -85,7 +85,7 @@ const evaluacionesController = {
                 return res.status(400).json({ error: 'Validación de nota', mensaje: error.message });
             }
             console.error('Error en evaluacionesController.create:', error);
-            res.status(500).json({ error: 'Error al registrar evaluación', detalle: error.message });
+            res.status(500).json({ error: 'Error al registrar evaluación', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -112,7 +112,7 @@ const evaluacionesController = {
                 return res.status(400).json({ error: 'Validación de nota', mensaje: error.message });
             }
             console.error('Error en evaluacionesController.update:', error);
-            res.status(500).json({ error: 'Error al actualizar evaluación', detalle: error.message });
+            res.status(500).json({ error: 'Error al actualizar evaluación', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -127,7 +127,7 @@ const evaluacionesController = {
             res.json({ mensaje: `Evaluación con ID ${id} eliminada correctamente.` });
         } catch (error) {
             console.error('Error en evaluacionesController.delete:', error);
-            res.status(500).json({ error: 'Error al eliminar evaluación', detalle: error.message });
+            res.status(500).json({ error: 'Error al eliminar evaluación', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     }
 };

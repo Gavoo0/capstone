@@ -8,7 +8,7 @@ const rolesController = {
             res.json(roles);
         } catch (error) {
             console.error('Error en rolesController.getAll:', error);
-            res.status(500).json({ error: 'Error al obtener roles', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener roles', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -23,7 +23,7 @@ const rolesController = {
             res.json(rol);
         } catch (error) {
             console.error('Error en rolesController.getById:', error);
-            res.status(500).json({ error: 'Error al obtener rol', detalle: error.message });
+            res.status(500).json({ error: 'Error al obtener rol', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -42,7 +42,7 @@ const rolesController = {
                 return res.status(409).json({ error: 'Duplicado', mensaje: 'El nombre de rol ya se encuentra registrado.' });
             }
             console.error('Error en rolesController.create:', error);
-            res.status(500).json({ error: 'Error al crear rol', detalle: error.message });
+            res.status(500).json({ error: 'Error al crear rol', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -67,7 +67,7 @@ const rolesController = {
                 return res.status(409).json({ error: 'Duplicado', mensaje: 'El nombre de rol ya está en uso.' });
             }
             console.error('Error en rolesController.update:', error);
-            res.status(500).json({ error: 'Error al actualizar rol', detalle: error.message });
+            res.status(500).json({ error: 'Error al actualizar rol', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     },
 
@@ -85,7 +85,7 @@ const rolesController = {
                 return res.status(409).json({ error: 'Restricción', mensaje: 'No se puede eliminar el rol porque tiene usuarios asignados.' });
             }
             console.error('Error en rolesController.delete:', error);
-            res.status(500).json({ error: 'Error al eliminar rol', detalle: error.message });
+            res.status(500).json({ error: 'Error al eliminar rol', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
     }
 };
