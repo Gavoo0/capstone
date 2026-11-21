@@ -1,4 +1,4 @@
-export const HORARIO = "Lunes a viernes: 9:40 a 13:00 y 15:00 a 20:20";
+export const HORARIO = "Lunes a Viernes: 9:40 a 13:00 y 15:00 a 20:20";
 
 export const CURSOS = [
   {

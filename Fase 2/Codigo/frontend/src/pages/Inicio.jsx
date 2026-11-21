@@ -314,7 +314,7 @@ function Inicio() {
               <p className="font-display text-xl md:text-2xl mt-2">{curso.titulo}</p>
               <p className="mt-3 text-[#0D0D0D]/75 max-w-md">{curso.descripcion}</p>
 
-              <p className="mt-5 text-sm font-semibold">Te habilita para</p>
+              <p className="mt-5 text-sm font-semibold">Te habilita para:</p>
               <ul className="mt-2 space-y-2">
                 {curso.habilita.map((item) => (
                   <li key={item} className="flex items-start gap-3">
