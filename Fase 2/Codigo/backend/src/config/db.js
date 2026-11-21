@@ -2,6 +2,13 @@ const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 // Configuración del Pool de conexiones a MySQL
+if (process.env.NODE_ENV === 'production') {
+    const requeridas = ['DB_HOST', 'DB_USER', 'DB_NAME', 'DB_PASSWORD'];
+    const faltantes = requeridas.filter((key) => !process.env[key]?.trim());
+    if (faltantes.length) throw new Error(`Faltan variables de base de datos para producción: ${faltantes.join(', ')}.`);
+    if (process.env.DB_USER.toLowerCase() === 'root') throw new Error('Producción requiere una cuenta MySQL de mínimo privilegio, no root.');
+}
+
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT) || 3306,

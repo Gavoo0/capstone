@@ -4,12 +4,15 @@
 
 // Deja solo números y K: "12.345.678-k" -> "12345678K"
 const limpiarRut = (texto) => {
-  return String(texto || "").replace(/[^0-9kK]/g, "").toUpperCase();
+  return String(texto || "").replace(/[.\-\s]/g, "").toUpperCase();
 };
+
+const formatoRutValido = (texto) => /^(?:\d{1,2}(?:\.\d{3}){2}|\d{7,8})-?[0-9kK]$/i.test(String(texto || "").trim());
 
 // Valida el RUT chileno con el dígito verificador (módulo 11)
 // Acepta "12.345.678-5", "12345678-5" o "123456785"
 const rutValido = (texto) => {
+  if (!formatoRutValido(texto)) return false;
   const limpio = limpiarRut(texto);
   if (limpio.length < 8 || limpio.length > 9) {
     return false;
@@ -93,6 +96,20 @@ const nombreValido = (texto) => {
   return nombre.length >= 2 && nombre.length <= 60 && /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:[ '-][A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*$/.test(nombre);
 };
 
+const fechaValida = (fecha) => {
+  if (typeof fecha !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return false;
+  const [anio, mes, dia] = fecha.split('-').map(Number);
+  const date = new Date(Date.UTC(anio, mes - 1, dia));
+  return date.getUTCFullYear() === anio && date.getUTCMonth() === mes - 1 && date.getUTCDate() === dia;
+};
+
+const fechaISO = (fecha) => fecha instanceof Date ? fecha.toISOString().slice(0, 10) : fecha;
+
+const horaValida = (hora) => typeof hora === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(hora);
+
+const intervaloAgendaValido = (fecha, horaInicio, horaFin) =>
+  fechaValida(fecha) && horaValida(horaInicio) && horaValida(horaFin) && horaInicio < horaFin;
+
 module.exports = {
     limpiarRut,
     rutValido,
@@ -103,4 +120,9 @@ module.exports = {
     normalizarCelular,
     telefonoValido,
     nombreValido,
+    formatoRutValido,
+    fechaValida,
+    fechaISO,
+    horaValida,
+    intervaloAgendaValido,
 };

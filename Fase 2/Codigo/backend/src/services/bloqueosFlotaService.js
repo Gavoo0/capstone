@@ -1,4 +1,7 @@
 const { pool } = require('../config/db');
+const { intervaloAgendaValido, fechaISO } = require('../utils/validaciones');
+const { withAgendaTransaction } = require('../utils/agendaTransaction');
+const idPositivo = (value) => Number.isSafeInteger(Number(value)) && Number(value) > 0;
 
 const bloqueosFlotaService = {
     // Listar bloqueos con filtros
@@ -77,7 +80,7 @@ const bloqueosFlotaService = {
     },
 
     // Comprobar si hay clases prácticas agendadas que colisionen con este bloqueo
-    async getClasesEnConflicto({ idVehiculo, idInstructor, fecha, horaInicio, horaFin }) {
+    async getClasesEnConflicto({ idVehiculo, idInstructor, fecha, horaInicio, horaFin }, connection = pool) {
         let query = `
             SELECT 
                 ID_CLASE, ID_ALUMNO, ID_INSTRUCTOR, ID_VEHICULO, FECHA, HORA_INICIO, HORA_FIN, ESTADO
@@ -93,69 +96,88 @@ const bloqueosFlotaService = {
             params.push(idInstructor);
         }
 
-        const [rows] = await pool.query(query, params);
+        const [rows] = await connection.query(query, params);
+        return rows;
+    },
+
+    async getBloqueosEnConflicto({ idVehiculo, idInstructor, fecha, horaInicio, horaFin, idBloqueoExcluir = null }, connection = pool) {
+        const [rows] = await connection.query(
+            `SELECT ID_BLOQUEO, ID_VEHICULO, ID_INSTRUCTOR, FECHA, HORA_INICIO, HORA_FIN
+             FROM bloqueos_flota
+             WHERE FECHA = ? AND HORA_INICIO < ? AND HORA_FIN > ?
+               AND (ID_VEHICULO = ? OR (? IS NOT NULL AND ID_INSTRUCTOR = ?))
+               AND (? IS NULL OR ID_BLOQUEO <> ?)`,
+            [fecha, horaFin, horaInicio, idVehiculo, idInstructor, idInstructor, idBloqueoExcluir, idBloqueoExcluir]
+        );
         return rows;
     },
 
     // Crear un nuevo bloqueo de flota
     async create({ idVehiculo, idInstructor = null, fecha, horaInicio, horaFin, motivo }) {
-        // Validación: verificar si colisiona con clases existentes
-        const conflictos = await this.getClasesEnConflicto({
-            idVehiculo,
-            idInstructor,
-            fecha,
-            horaInicio,
-            horaFin
-        });
-
-        if (conflictos.length > 0) {
-            const error = new Error('No se puede crear el bloqueo: existen clases prácticas agendadas en este horario.');
-            error.conflictos = conflictos;
-            throw error;
+        if (!idPositivo(idVehiculo) || (idInstructor !== null && !idPositivo(idInstructor))
+            || typeof motivo !== 'string' || !motivo.trim() || motivo.trim().length > 255) {
+            throw Object.assign(new Error('Vehículo, instructor o motivo no válido.'), { status: 400 });
         }
-
-        const [result] = await pool.query(
-            `INSERT INTO bloqueos_flota (ID_VEHICULO, ID_INSTRUCTOR, FECHA, HORA_INICIO, HORA_FIN, MOTIVO)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [idVehiculo, idInstructor, fecha, horaInicio, horaFin, motivo]
-        );
-
-        return this.getById(result.insertId);
+        if (!intervaloAgendaValido(fecha, horaInicio, horaFin)) {
+            throw Object.assign(new Error('La fecha u horario no es válido.'), { status: 400 });
+        }
+        const idBloqueo = await withAgendaTransaction(async (connection) => {
+            const recursos = { idVehiculo, idInstructor, fecha, horaInicio, horaFin };
+            const conflictos = await this.getClasesEnConflicto(recursos, connection);
+            const bloqueos = await this.getBloqueosEnConflicto(recursos, connection);
+            if (conflictos.length || bloqueos.length) {
+                throw Object.assign(new Error('No se puede crear el bloqueo: existe una clase o bloqueo en ese horario.'), { status: 409, conflictos: [...conflictos, ...bloqueos] });
+            }
+            const [result] = await connection.query(
+                `INSERT INTO bloqueos_flota (ID_VEHICULO, ID_INSTRUCTOR, FECHA, HORA_INICIO, HORA_FIN, MOTIVO)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [Number(idVehiculo), idInstructor === null ? null : Number(idInstructor), fecha, horaInicio, horaFin, motivo.trim()]
+            );
+            return result.insertId;
+        });
+        return this.getById(idBloqueo);
     },
 
     // Actualizar datos del bloqueo
     async update(idBloqueo, { idVehiculo, idInstructor, fecha, horaInicio, horaFin, motivo }) {
-        const actual = await this.getById(idBloqueo);
-        if (!actual) return null;
-
-        const nuevoBloqueo = {
-            idVehiculo: idVehiculo !== undefined ? idVehiculo : actual.ID_VEHICULO,
-            idInstructor: idInstructor !== undefined ? idInstructor : actual.ID_INSTRUCTOR,
-            fecha: fecha !== undefined ? fecha : actual.FECHA,
-            horaInicio: horaInicio !== undefined ? horaInicio : actual.HORA_INICIO,
-            horaFin: horaFin !== undefined ? horaFin : actual.HORA_FIN
-        };
-        const conflictos = await this.getClasesEnConflicto(nuevoBloqueo);
-        if (conflictos.length > 0) {
-            const error = new Error('No se puede actualizar el bloqueo: existen clases prácticas agendadas en este horario.');
-            error.conflictos = conflictos;
-            throw error;
-        }
-
-        const fields = [];
-        const values = [];
-
-        if (idVehiculo !== undefined) { fields.push('ID_VEHICULO = ?'); values.push(idVehiculo); }
-        if (idInstructor !== undefined) { fields.push('ID_INSTRUCTOR = ?'); values.push(idInstructor); }
-        if (fecha !== undefined) { fields.push('FECHA = ?'); values.push(fecha); }
-        if (horaInicio !== undefined) { fields.push('HORA_INICIO = ?'); values.push(horaInicio); }
-        if (horaFin !== undefined) { fields.push('HORA_FIN = ?'); values.push(horaFin); }
-        if (motivo !== undefined) { fields.push('MOTIVO = ?'); values.push(motivo); }
-
-        if (fields.length === 0) return this.getById(idBloqueo);
-
-        values.push(idBloqueo);
-        await pool.query(`UPDATE bloqueos_flota SET ${fields.join(', ')} WHERE ID_BLOQUEO = ?`, values);
+        const updated = await withAgendaTransaction(async (connection) => {
+            const actual = await this.getById(idBloqueo);
+            if (!actual) return false;
+            const nuevoBloqueo = {
+                idVehiculo: idVehiculo !== undefined ? idVehiculo : actual.ID_VEHICULO,
+                idInstructor: idInstructor !== undefined ? idInstructor : actual.ID_INSTRUCTOR,
+                fecha: fechaISO(fecha !== undefined ? fecha : actual.FECHA),
+                horaInicio: horaInicio !== undefined ? horaInicio : actual.HORA_INICIO,
+                horaFin: horaFin !== undefined ? horaFin : actual.HORA_FIN
+            };
+            if (!idPositivo(nuevoBloqueo.idVehiculo) || (nuevoBloqueo.idInstructor !== null && !idPositivo(nuevoBloqueo.idInstructor))) {
+                throw Object.assign(new Error('Vehículo o instructor no válido.'), { status: 400 });
+            }
+            if (motivo !== undefined && (typeof motivo !== 'string' || !motivo.trim() || motivo.trim().length > 255)) {
+                throw Object.assign(new Error('El motivo debe tener entre 1 y 255 caracteres.'), { status: 400 });
+            }
+            if (!intervaloAgendaValido(nuevoBloqueo.fecha, nuevoBloqueo.horaInicio, nuevoBloqueo.horaFin)) {
+                throw Object.assign(new Error('La fecha u horario no es válido.'), { status: 400 });
+            }
+            const conflictos = await this.getClasesEnConflicto(nuevoBloqueo, connection);
+            const bloqueos = await this.getBloqueosEnConflicto({ ...nuevoBloqueo, idBloqueoExcluir: Number(idBloqueo) }, connection);
+            if (conflictos.length || bloqueos.length) {
+                throw Object.assign(new Error('No se puede actualizar el bloqueo: existe una clase o bloqueo en ese horario.'), { status: 409, conflictos: [...conflictos, ...bloqueos] });
+            }
+            const fields = [];
+            const values = [];
+            if (idVehiculo !== undefined) { fields.push('ID_VEHICULO = ?'); values.push(idVehiculo); }
+            if (idInstructor !== undefined) { fields.push('ID_INSTRUCTOR = ?'); values.push(idInstructor); }
+            if (fecha !== undefined) { fields.push('FECHA = ?'); values.push(fecha); }
+            if (horaInicio !== undefined) { fields.push('HORA_INICIO = ?'); values.push(horaInicio); }
+            if (horaFin !== undefined) { fields.push('HORA_FIN = ?'); values.push(horaFin); }
+            if (motivo !== undefined) { fields.push('MOTIVO = ?'); values.push(motivo); }
+            if (!fields.length) return true;
+            values.push(idBloqueo);
+            await connection.query(`UPDATE bloqueos_flota SET ${fields.join(', ')} WHERE ID_BLOQUEO = ?`, values);
+            return true;
+        });
+        if (!updated) return null;
         return this.getById(idBloqueo);
     },
 

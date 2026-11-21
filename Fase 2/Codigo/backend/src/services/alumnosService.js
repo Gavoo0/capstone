@@ -28,7 +28,7 @@ const alumnosService = {
     },
 
     // Obtener la ficha completa de un alumno por ID_USUARIO
-    async getByUsuarioId(idUsuario) {
+    async getByUsuarioId(idUsuario, connection = pool) {
         const query = `
             SELECT 
                 u.ID_USUARIO,
@@ -49,7 +49,7 @@ const alumnosService = {
             LEFT JOIN sedes s ON u.ID_SEDE = s.ID_SEDE
             WHERE ad.ID_USUARIO = ?
         `;
-        const [rows] = await pool.query(query, [idUsuario]);
+        const [rows] = await connection.query(query, [idUsuario]);
         return rows[0] || null;
     },
 
@@ -79,8 +79,8 @@ const alumnosService = {
 
     // Validar si el alumno está habilitado para agendar clases prácticas
     // Regla de negocio: Psicotécnico 'APROBADO' y asistencia teórica mínima (ej. 75%)
-    async isHabilitadoParaPractica(idUsuario, umbralAsistencia = 75.0) {
-        const alumno = await this.getByUsuarioId(idUsuario);
+    async isHabilitadoParaPractica(idUsuario, umbralAsistencia = 75.0, connection = pool) {
+        const alumno = await this.getByUsuarioId(idUsuario, connection);
         if (!alumno) {
             return { habilitado: false, motivo: 'El alumno no existe o no tiene ficha registrada.' };
         }

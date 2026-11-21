@@ -1,15 +1,26 @@
 import { Link, useNavigate } from "react-router-dom";
 import { cerrarSesion } from "../../services/sesion";
+import { api } from "../../services/api";
+import { useState } from "react";
 
 // Barra superior de los paneles privados (admin, instructor y alumno)
 function BarraPanel({ etiqueta, sesion }) {
   const navigate = useNavigate();
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
 
   const nombreUsuario = `${sesion.NOMBRE || ""} ${sesion.APELLIDO || ""}`.trim();
 
-  const handleCerrarSesion = () => {
-    cerrarSesion();
-    navigate("/iniciar-sesion");
+  const handleCerrarSesion = async () => {
+    if (cerrandoSesion) return;
+    setCerrandoSesion(true);
+    try {
+      await api.post("/usuarios/logout", {});
+    } catch (error) {
+      console.error("No se pudo revocar la sesión en el servidor:", error);
+    } finally {
+      cerrarSesion();
+      navigate("/iniciar-sesion");
+    }
   };
 
   return (
@@ -27,8 +38,8 @@ function BarraPanel({ etiqueta, sesion }) {
           <div className="flex items-center gap-4 font-body text-sm">
             {sesion.NOMBRE_SEDE && <span className="hidden md:inline text-[#FAFAF8]/50">Sede {sesion.NOMBRE_SEDE}</span>}
             {nombreUsuario && <span className="hidden sm:inline text-[#FAFAF8]/80">{nombreUsuario}</span>}
-            <button type="button" onClick={handleCerrarSesion} className="text-[#FAFAF8]/60 hover:text-[#FFC400]">
-              Cerrar sesión
+            <button type="button" onClick={handleCerrarSesion} disabled={cerrandoSesion} className="text-[#FAFAF8]/60 hover:text-[#FFC400] disabled:opacity-50">
+              {cerrandoSesion ? "Cerrando sesión..." : "Cerrar sesión"}
             </button>
           </div>
         </div>

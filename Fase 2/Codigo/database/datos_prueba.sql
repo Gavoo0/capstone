@@ -1,8 +1,23 @@
 -- Datos de prueba para desarrollo local. Ejecutar después de script_base_datos.sql.
--- No borra datos existentes y puede ejecutarse más de una vez.
+-- Limpia solo los registros demo anteriores y puede ejecutarse repetidamente.
 -- Las cuentas nuevas usan Futuro2026; el primer login migra SHA-256 a bcrypt.
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE escuela_conductores;
 START TRANSACTION;
+-- Elimina únicamente los datos demo variables para volver a generarlos.
+DELETE FROM CLASES_PRACTICAS
+WHERE ID_CLASE > 0 AND (OBSERVACIONES IN ('DEMO: clase práctica realizada', 'DEMO: próxima clase práctica')
+   OR TOKEN_AUTOGESTION = 'capstone-demo-class-token-9f7c6848-0a8e-4d94-a2fc-169579e5d10a');
+DELETE FROM BLOQUEOS_FLOTA
+WHERE ID_BLOQUEO > 0 AND MOTIVO = 'DEMO: vehículo reservado para examen';
+DELETE FROM EVALUACIONES
+WHERE ID_EVALUACION > 0 AND ID_ALUMNO = (SELECT ID_USUARIO FROM USUARIOS WHERE EMAIL = 'alumno@futuro.cl' LIMIT 1)
+  AND ID_INSTRUCTOR = (SELECT ID_USUARIO FROM USUARIOS WHERE EMAIL = 'instructor@futuro.cl' LIMIT 1)
+  AND TIPO_EVALUACION = 'Evaluación demo';
+DELETE FROM ASISTENCIAS_TEORICAS
+WHERE ID_ASISTENCIA > 0 AND ID_ALUMNO = (SELECT ID_USUARIO FROM USUARIOS WHERE EMAIL = 'alumno@futuro.cl' LIMIT 1)
+  AND ID_INSTRUCTOR = (SELECT ID_USUARIO FROM USUARIOS WHERE EMAIL = 'instructor@futuro.cl' LIMIT 1)
+  AND NOMBRE_BLOQUE IN ('Bloque demo 1', 'Bloque demo 2', 'Bloque demo 3', 'Bloque demo 4');
 
 INSERT IGNORE INTO ROLES (NOMBRE_ROL)
 VALUES ('ADMINISTRADOR'), ('INSTRUCTOR'), ('ALUMNO');
@@ -30,15 +45,15 @@ WHERE NOT EXISTS (SELECT 1 FROM USUARIOS WHERE RUT = '22222222-2' OR EMAIL = 'in
 INSERT INTO USUARIOS (RUT, NOMBRE, APELLIDO, EMAIL, PASSWORD_HASH, ID_ROL, ID_SEDE, ESTADO_ACTIVO)
 SELECT '12345678-5', 'Alumno', 'Prueba', 'alumno@futuro.cl', @hash_demo, @rol_alumno, @sede_macul, 1
 WHERE NOT EXISTS (SELECT 1 FROM USUARIOS WHERE RUT = '12345678-5' OR EMAIL = 'alumno@futuro.cl');
-UPDATE USUARIOS SET NOMBRE = 'Admin', APELLIDO = 'Prueba', PASSWORD_HASH = @hash_demo,
-    ID_ROL = @rol_admin, ID_SEDE = @sede_macul, ESTADO_ACTIVO = 1 WHERE EMAIL = 'admin@futuro.cl';
-UPDATE USUARIOS SET NOMBRE = 'Instructor', APELLIDO = 'Prueba', PASSWORD_HASH = @hash_demo,
-    ID_ROL = @rol_instructor, ID_SEDE = @sede_macul, ESTADO_ACTIVO = 1 WHERE EMAIL = 'instructor@futuro.cl';
-UPDATE USUARIOS SET NOMBRE = 'Alumno', APELLIDO = 'Prueba', PASSWORD_HASH = @hash_demo,
-    ID_ROL = @rol_alumno, ID_SEDE = @sede_macul, ESTADO_ACTIVO = 1 WHERE EMAIL = 'alumno@futuro.cl';
 SET @admin_id = (SELECT ID_USUARIO FROM USUARIOS WHERE EMAIL = 'admin@futuro.cl' LIMIT 1);
 SET @instructor_id = (SELECT ID_USUARIO FROM USUARIOS WHERE EMAIL = 'instructor@futuro.cl' LIMIT 1);
 SET @alumno_id = (SELECT ID_USUARIO FROM USUARIOS WHERE EMAIL = 'alumno@futuro.cl' LIMIT 1);
+UPDATE USUARIOS SET NOMBRE = 'Admin', APELLIDO = 'Prueba', PASSWORD_HASH = @hash_demo,
+    ID_ROL = @rol_admin, ID_SEDE = @sede_macul, ESTADO_ACTIVO = 1 WHERE ID_USUARIO = @admin_id;
+UPDATE USUARIOS SET NOMBRE = 'Instructor', APELLIDO = 'Prueba', PASSWORD_HASH = @hash_demo,
+    ID_ROL = @rol_instructor, ID_SEDE = @sede_macul, ESTADO_ACTIVO = 1 WHERE ID_USUARIO = @instructor_id;
+UPDATE USUARIOS SET NOMBRE = 'Alumno', APELLIDO = 'Prueba', PASSWORD_HASH = @hash_demo,
+    ID_ROL = @rol_alumno, ID_SEDE = @sede_macul, ESTADO_ACTIVO = 1 WHERE ID_USUARIO = @alumno_id;
 
 INSERT INTO ALUMNOS_DETALLE
     (ID_USUARIO, ESTADO_PSICOTECNICO, FECHA_EVALUACION_PSICOTECNICA, OBSERVACION_PSICOTECNICA,
@@ -54,12 +69,12 @@ WHERE NOT EXISTS (SELECT 1 FROM VEHICULOS WHERE PATENTE = 'DEMO-01');
 INSERT INTO VEHICULOS (PATENTE, MODELO, TRANSMISION, ID_SEDE, ESTADO_OPERATIVO)
 SELECT 'DEMO-02', 'Nissan Versa', 'MANUAL', @sede_penalolen, 'OPERATIVO'
 WHERE NOT EXISTS (SELECT 1 FROM VEHICULOS WHERE PATENTE = 'DEMO-02');
-UPDATE VEHICULOS SET MODELO = 'Toyota Corolla', TRANSMISION = 'MANUAL', ID_SEDE = @sede_macul, ESTADO_OPERATIVO = 'OPERATIVO'
-WHERE PATENTE = 'DEMO-01';
-UPDATE VEHICULOS SET MODELO = 'Nissan Versa', TRANSMISION = 'MANUAL', ID_SEDE = @sede_penalolen, ESTADO_OPERATIVO = 'OPERATIVO'
-WHERE PATENTE = 'DEMO-02';
 SET @vehiculo_1 = (SELECT ID_VEHICULO FROM VEHICULOS WHERE PATENTE = 'DEMO-01' LIMIT 1);
 SET @vehiculo_2 = (SELECT ID_VEHICULO FROM VEHICULOS WHERE PATENTE = 'DEMO-02' LIMIT 1);
+UPDATE VEHICULOS SET MODELO = 'Toyota Corolla', TRANSMISION = 'MANUAL', ID_SEDE = @sede_macul, ESTADO_OPERATIVO = 'OPERATIVO'
+WHERE ID_VEHICULO = @vehiculo_1;
+UPDATE VEHICULOS SET MODELO = 'Nissan Versa', TRANSMISION = 'MANUAL', ID_SEDE = @sede_penalolen, ESTADO_OPERATIVO = 'OPERATIVO'
+WHERE ID_VEHICULO = @vehiculo_2;
 
 -- Progreso del alumno: tres asistencias de cuatro (75%).
 INSERT INTO ASISTENCIAS_TEORICAS (ID_ALUMNO, ID_INSTRUCTOR, NOMBRE_BLOQUE, FECHA, ESTADO)
@@ -123,27 +138,9 @@ WHERE NOT EXISTS (SELECT 1 FROM BLOQUEOS_FLOTA WHERE ID_VEHICULO = @vehiculo_2 A
     WHERE FECHA = @fecha_bloqueo_demo AND ID_VEHICULO = @vehiculo_2
       AND HORA_INICIO < '16:30' AND HORA_FIN > '15:00'
   );
-UPDATE BLOQUEOS_FLOTA
-SET ID_VEHICULO = @vehiculo_2, ID_INSTRUCTOR = NULL, FECHA = @fecha_bloqueo_demo,
-    HORA_INICIO = '15:00', HORA_FIN = '16:30'
-WHERE MOTIVO = 'DEMO: vehículo reservado para examen'
-  AND NOT EXISTS (
-    SELECT 1 FROM CLASES_PRACTICAS
-    WHERE FECHA = @fecha_bloqueo_demo AND ESTADO IN ('AGENDADA', 'CONFIRMADA')
-      AND ID_VEHICULO = @vehiculo_2 AND HORA_INICIO < '16:30' AND HORA_FIN > '15:00'
-  ) AND NOT EXISTS (
-    SELECT 1 FROM (
-      SELECT ID_BLOQUEO, FECHA, ID_VEHICULO, HORA_INICIO, HORA_FIN
-      FROM BLOQUEOS_FLOTA LIMIT 18446744073709551615
-    ) otro
-    WHERE otro.ID_BLOQUEO <> BLOQUEOS_FLOTA.ID_BLOQUEO
-      AND otro.FECHA = @fecha_bloqueo_demo AND otro.ID_VEHICULO = @vehiculo_2
-      AND otro.HORA_INICIO < '16:30' AND otro.HORA_FIN > '15:00'
-  );
-
-INSERT INTO PREINSCRIPCIONES (NOMBRE, CONTACTO, SEDE_PREFERIDA, RUT, CORREO, TELEFONO, ID_SEDE)
-SELECT 'Postulante Demo', 'demo@futuro.cl', 'Macul', '99.999.996-4',
-       'preinscripcion.demo@futuro.cl', '+56 9 1111 1111', @sede_macul
-WHERE NOT EXISTS (SELECT 1 FROM PREINSCRIPCIONES WHERE CORREO = 'preinscripcion.demo@futuro.cl');
-
 COMMIT;
+
+
+
+
+
