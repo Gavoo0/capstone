@@ -1,4 +1,5 @@
 const preinscripcionesService = require('../services/preinscripcionesService');
+const { rutValido, normalizarRut, correoValido, celularValido, normalizarCelular, nombreValido } = require('../utils/validaciones');
 
 const create = async (req, res) => {
     const { nombre, rut, correo, telefono, idSede } = req.body;
@@ -9,16 +10,25 @@ const create = async (req, res) => {
     if (nombre.trim().length > 150 || rut.trim().length > 12 || correo.trim().length > 150 || telefono.trim().length > 20) {
         return res.status(400).json({ mensaje: 'Uno o más campos superan el largo permitido.' });
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo.trim())) {
+    if (!nombreValido(nombre)) {
+        return res.status(400).json({ mensaje: 'Ingrese un nombre válido, solo con letras.' });
+    }
+    if (!rutValido(rut)) {
+        return res.status(400).json({ mensaje: 'El RUT no es válido. Revise el número y el dígito verificador.' });
+    }
+    if (!correoValido(correo)) {
         return res.status(400).json({ mensaje: 'Ingrese un correo electrónico válido.' });
+    }
+    if (!celularValido(telefono)) {
+        return res.status(400).json({ mensaje: 'Ingrese un celular chileno válido (9 dígitos, que parte con 9).' });
     }
 
     try {
         const preinscripcion = await preinscripcionesService.create({
             nombre: nombre.trim(),
-            rut: rut.trim(),
+            rut: normalizarRut(rut),
             correo: correo.trim().toLowerCase(),
-            telefono: telefono.trim(),
+            telefono: normalizarCelular(telefono),
             idSede: Number(idSede)
         });
         return res.status(201).json({ mensaje: 'Preinscripción recibida correctamente.', preinscripcion });

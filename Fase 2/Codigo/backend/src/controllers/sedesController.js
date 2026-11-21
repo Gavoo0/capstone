@@ -1,3 +1,4 @@
+const { telefonoValido } = require('../utils/validaciones');
 const { sedesService } = require('../services');
 
 const sedesController = {
@@ -38,6 +39,10 @@ const sedesController = {
                 });
             }
 
+            if (telefono && !telefonoValido(telefono)) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'El teléfono no es válido. Use 9 dígitos, por ejemplo +56 2 2345 6789.' });
+            }
+
             const nuevaSede = await sedesService.create({ nombre, direccion, telefono });
             res.status(201).json(nuevaSede);
         } catch (error) {
@@ -51,6 +56,10 @@ const sedesController = {
         try {
             const { id } = req.params;
             const { nombre, direccion, telefono } = req.body;
+
+            if (telefono && !telefonoValido(telefono)) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'El teléfono no es válido. Use 9 dígitos, por ejemplo +56 2 2345 6789.' });
+            }
 
             const sedeActualizada = await sedesService.update(id, { nombre, direccion, telefono });
             if (!sedeActualizada) {

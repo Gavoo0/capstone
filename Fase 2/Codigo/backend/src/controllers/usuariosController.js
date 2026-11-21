@@ -1,3 +1,4 @@
+const { rutValido, normalizarRut, correoValido, nombreValido } = require('../utils/validaciones');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const { usuariosService, rolesService } = require('../services');
@@ -73,6 +74,18 @@ const usuariosController = {
             if (Buffer.byteLength(password, 'utf8') > 72) {
                 return res.status(400).json({ mensaje: 'La contraseña no puede superar 72 bytes.' });
             }
+            if (password.length < 8) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'La contraseña debe tener al menos 8 caracteres.' });
+            }
+            if (!rutValido(rut)) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'El RUT no es válido. Revise el número y el dígito verificador.' });
+            }
+            if (!nombreValido(nombre) || !nombreValido(apellido)) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'El nombre y el apellido solo pueden tener letras.' });
+            }
+            if (!correoValido(email)) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'Ingrese un correo electrónico válido.' });
+            }
 
             // Identificar si el rol corresponde a 'ALUMNO'
             const rol = await rolesService.getById(idRol);
@@ -81,7 +94,7 @@ const usuariosController = {
             const passwordHash = await hashPassword(password);
 
             const nuevoUsuario = await usuariosService.create({
-                rut: rut.trim(),
+                rut: normalizarRut(rut),
                 nombre: nombre.trim(),
                 apellido: apellido.trim(),
                 email: email.trim().toLowerCase(),
@@ -169,11 +182,22 @@ const usuariosController = {
             const { id } = req.params;
             const { rut, nombre, apellido, email, idRol, idSede, estadoActivo } = req.body;
 
+            // Validar solo los datos que vienen en la petición
+            if (rut !== undefined && !rutValido(rut)) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'El RUT no es válido. Revise el número y el dígito verificador.' });
+            }
+            if ((nombre !== undefined && !nombreValido(nombre)) || (apellido !== undefined && !nombreValido(apellido))) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'El nombre y el apellido solo pueden tener letras.' });
+            }
+            if (email !== undefined && !correoValido(email)) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'Ingrese un correo electrónico válido.' });
+            }
+
             const usuarioActualizado = await usuariosService.update(id, {
-                rut,
-                nombre,
-                apellido,
-                email,
+                rut: rut !== undefined ? normalizarRut(rut) : undefined,
+                nombre: nombre !== undefined ? nombre.trim() : undefined,
+                apellido: apellido !== undefined ? apellido.trim() : undefined,
+                email: email !== undefined ? email.trim().toLowerCase() : undefined,
                 idRol,
                 idSede,
                 estadoActivo
@@ -221,8 +245,8 @@ const usuariosController = {
             const { id } = req.params;
             const { newPassword } = req.body;
 
-            if (typeof newPassword !== 'string' || newPassword.length < 6) {
-                return res.status(400).json({ error: 'Validación', mensaje: 'La contraseña debe tener al menos 6 caracteres.' });
+            if (typeof newPassword !== 'string' || newPassword.length < 8) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'La contraseña debe tener al menos 8 caracteres.' });
             }
             if (Buffer.byteLength(newPassword, 'utf8') > 72) {
                 return res.status(400).json({ error: 'Validación', mensaje: 'La contraseña no puede superar 72 bytes.' });
