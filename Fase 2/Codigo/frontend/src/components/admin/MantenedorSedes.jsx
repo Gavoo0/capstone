@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import ModalFormulario from "./ModalFormulario";
 import ModalConfirmar from "./ModalConfirmar";
 import { fetchSedes, crearSede, editarSede, eliminarSede } from "../../services/sedeService";
+import { telefonoValido } from "../../utils/validaciones";
 
 const FORMULARIO_VACIO = {
   nombre: "",
@@ -78,6 +79,12 @@ function MantenedorSedes({ mostrarAlerta, onCambio }) {
     // Validar campos obligatorios
     if (!formData.nombre.trim() || !formData.direccion.trim()) {
       mostrarAlerta("danger", "Completa el nombre y la dirección de la sede.");
+      return;
+    }
+
+    // El teléfono es opcional, pero si se escribe tiene que ser válido
+    if (formData.telefono.trim() && !telefonoValido(formData.telefono)) {
+      mostrarAlerta("danger", "El teléfono no es válido. Usa 9 dígitos, por ejemplo +56 2 2345 6789.");
       return;
     }
 

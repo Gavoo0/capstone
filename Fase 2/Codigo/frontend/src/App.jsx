@@ -7,6 +7,8 @@ import DashboardAlumno from './pages/DashboardAlumno';
 import PanelInstructor from './pages/PanelInstructor';
 import AgendamientoAdmin from './pages/AgendamientoAdmin';
 import AutogestionClase from './pages/AutogestionClase';
+import RecuperarClave from './pages/RecuperarClave';
+import RestablecerClave from './pages/RestablecerClave';
 import RutaPrivada from './components/RutaPrivada';
 
 function App() {
@@ -16,6 +18,8 @@ function App() {
         {/* Rutas públicas */}
         <Route path="/" element={<Inicio />} />
         <Route path="/iniciar-sesion" element={<IniciarSesion />} />
+        <Route path="/recuperar-clave" element={<RecuperarClave />} />
+        <Route path="/restablecer-clave" element={<RestablecerClave />} />
 
         {/* Ruta pública de autogestión por token (no necesita sesión) */}
         <Route path="/alumno/autogestion-clase" element={<AutogestionClase />} />

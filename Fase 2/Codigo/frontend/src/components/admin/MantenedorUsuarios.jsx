@@ -10,6 +10,8 @@ import {
   eliminarUsuario,
 } from "../../services/usuarioService";
 import { fetchSedes } from "../../services/sedeService";
+import { LARGO_MINIMO_CLAVE } from "../../services/recuperacionService";
+import { rutValido, normalizarRut, formatearRut, correoValido, nombreValido } from "../../utils/validaciones";
 
 const FORMULARIO_VACIO = {
   rut: "",
@@ -80,7 +82,7 @@ function MantenedorUsuarios({ mostrarAlerta, onCambio }) {
 
   const abrirEditar = (usuario) => {
     setFormData({
-      rut: usuario.RUT,
+      rut: formatearRut(usuario.RUT),
       nombre: usuario.NOMBRE,
       apellido: usuario.APELLIDO,
       email: usuario.EMAIL,
@@ -105,17 +107,29 @@ function MantenedorUsuarios({ mostrarAlerta, onCambio }) {
       return;
     }
 
+    // Validar el formato de cada dato
+    if (!rutValido(formData.rut)) {
+      mostrarAlerta("danger", "El RUT no es válido. Revisa el número y el dígito verificador.");
+      return;
+    } else if (!nombreValido(formData.nombre) || !nombreValido(formData.apellido)) {
+      mostrarAlerta("danger", "El nombre y el apellido solo pueden tener letras.");
+      return;
+    } else if (!correoValido(formData.email)) {
+      mostrarAlerta("danger", "Ingresa un correo válido, por ejemplo nombre@correo.cl.");
+      return;
+    }
+
     // La contraseña solo se pide al crear
-    if (idEditando === null && formData.password.length < 6) {
-      mostrarAlerta("danger", "La contraseña debe tener al menos 6 caracteres.");
+    if (idEditando === null && formData.password.length < LARGO_MINIMO_CLAVE) {
+      mostrarAlerta("danger", `La contraseña debe tener al menos ${LARGO_MINIMO_CLAVE} caracteres.`);
       return;
     }
 
     const usuarioFormateado = {
-      rut: formData.rut.trim(),
+      rut: normalizarRut(formData.rut),
       nombre: formData.nombre.trim(),
       apellido: formData.apellido.trim(),
-      email: formData.email.trim(),
+      email: formData.email.trim().toLowerCase(),
       idRol: Number(formData.idRol),
       idSede: formData.idSede ? Number(formData.idSede) : null,
     };
@@ -282,7 +296,7 @@ function MantenedorUsuarios({ mostrarAlerta, onCambio }) {
         </div>
         <div>
           <label htmlFor="u-rut" className="campo-etiqueta">RUT</label>
-          <input id="u-rut" name="rut" className="campo" placeholder="12.345.678-5" value={formData.rut} onChange={handleChange} />
+          <input id="u-rut" name="rut" className="campo" placeholder="12.345.678-5" maxLength={12} value={formData.rut} onChange={(e) => setFormData((prev) => ({ ...prev, rut: formatearRut(e.target.value) }))} />
         </div>
         <div>
           <label htmlFor="u-email" className="campo-etiqueta">Correo</label>
@@ -291,7 +305,7 @@ function MantenedorUsuarios({ mostrarAlerta, onCambio }) {
         {idEditando === null && (
           <div>
             <label htmlFor="u-password" className="campo-etiqueta">Contraseña inicial</label>
-            <input id="u-password" name="password" type="password" className="campo" placeholder="Mínimo 6 caracteres" value={formData.password} onChange={handleChange} />
+            <input id="u-password" name="password" type="password" className="campo" placeholder="Mínimo 8 caracteres" value={formData.password} onChange={handleChange} />
           </div>
         )}
         <div className="grid sm:grid-cols-2 gap-4">

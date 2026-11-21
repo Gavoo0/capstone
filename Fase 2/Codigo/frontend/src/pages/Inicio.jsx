@@ -4,60 +4,7 @@ import { api } from "../services/api";
 import { obtenerSesion, rutaPorRol } from "../services/sesion";
 import Vehiculo from "../components/inicio/Vehiculo";
 import { HORARIO, CURSOS, ETAPAS } from "../data/inicio";
-
-// Validar RUT chileno con el dígito verificador (módulo 11)
-// Acepta "12.345.678-5", "12345678-5" o "123456785"
-const rutValido = (texto) => {
-  // Quitar puntos y guion
-  const limpio = texto.replace(/\./g, "").replace("-", "").trim().toUpperCase();
-  if (limpio.length < 8) {
-    return false;
-  }
-
-  // Separar el cuerpo del dígito verificador
-  const cuerpo = limpio.slice(0, -1);
-  const dv = limpio.slice(-1);
-  if (!/^\d+$/.test(cuerpo)) {
-    return false;
-  }
-
-  // Calcular la suma multiplicando de derecha a izquierda por 2, 3, 4, 5, 6, 7
-  let suma = 0;
-  let multiplo = 2;
-  for (let i = cuerpo.length - 1; i >= 0; i--) {
-    suma += Number(cuerpo[i]) * multiplo;
-    if (multiplo === 7) {
-      multiplo = 2;
-    } else {
-      multiplo = multiplo + 1;
-    }
-  }
-
-  // Obtener el dígito verificador esperado
-  const resto = 11 - (suma % 11);
-  let dvEsperado = String(resto);
-  if (resto === 11) {
-    dvEsperado = "0";
-  } else if (resto === 10) {
-    dvEsperado = "K";
-  }
-
-  return dv === dvEsperado;
-};
-
-// Validar formato de correo (texto@texto.texto)
-const correoValido = (texto) => {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(texto.trim());
-};
-
-// Validar celular chileno: 9 dígitos que parten con 9
-const celularValido = (texto) => {
-  let numeros = texto.replace(/\D/g, ""); // Dejar solo los números
-  if (numeros.startsWith("56")) {
-    numeros = numeros.slice(2); // Quitar el código de país
-  }
-  return /^9\d{8}$/.test(numeros);
-};
+import { rutValido, normalizarRut, formatearRut, correoValido, celularValido, normalizarCelular, nombreValido } from "../utils/validaciones";
 
 function Inicio() {
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -143,8 +90,8 @@ function Inicio() {
     e.preventDefault();
 
     // Validar nombre
-    if (nombre.trim() === "") {
-      mostrarAlerta("danger", "Ingresa tu nombre completo.");
+    if (!nombreValido(nombre)) {
+      mostrarAlerta("danger", "Ingresa tu nombre completo, solo con letras.");
       return;
     }
 
@@ -174,9 +121,9 @@ function Inicio() {
 
     const preinscripcionFormateada = {
       nombre: nombre.trim(),
-      rut: rut.trim(),
-      correo: correo.trim(),
-      telefono: telefono.trim(),
+      rut: normalizarRut(rut),
+      correo: correo.trim().toLowerCase(),
+      telefono: normalizarCelular(telefono),
       idSede: Number(idSede),
     };
 
@@ -461,19 +408,19 @@ function Inicio() {
           <form onSubmit={enviarPreinscripcion} noValidate className="bg-[#FAFAF8] rounded-md p-6 space-y-4">
             <div>
               <label htmlFor="nombre" className="campo-etiqueta">Nombre completo</label>
-              <input id="nombre" type="text" className="campo" placeholder="Tu nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+              <input id="nombre" type="text" className="campo" placeholder="Tu nombre" maxLength={60} value={nombre} onChange={(e) => setNombre(e.target.value)} />
             </div>
             <div>
               <label htmlFor="rut" className="campo-etiqueta">RUT</label>
-              <input id="rut" type="text" className="campo" placeholder="12.345.678-5" value={rut} onChange={(e) => setRut(e.target.value)} />
+              <input id="rut" type="text" className="campo" placeholder="12.345.678-5" maxLength={12} value={rut} onChange={(e) => setRut(formatearRut(e.target.value))} />
             </div>
             <div>
               <label htmlFor="correo" className="campo-etiqueta">Correo</label>
-              <input id="correo" type="email" className="campo" placeholder="tucorreo@ejemplo.cl" value={correo} onChange={(e) => setCorreo(e.target.value)} />
+              <input id="correo" type="email" className="campo" placeholder="tucorreo@ejemplo.cl" maxLength={150} value={correo} onChange={(e) => setCorreo(e.target.value)} />
             </div>
             <div>
               <label htmlFor="telefono" className="campo-etiqueta">Celular</label>
-              <input id="telefono" type="tel" className="campo" placeholder="912345678" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
+              <input id="telefono" type="tel" className="campo" placeholder="912345678" maxLength={16} value={telefono} onChange={(e) => setTelefono(e.target.value)} />
             </div>
             <div>
               <label htmlFor="sede" className="campo-etiqueta">Sede preferida</label>
