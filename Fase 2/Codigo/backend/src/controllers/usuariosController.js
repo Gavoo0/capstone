@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const { usuariosService, rolesService } = require('../services');
 const { createToken } = require('../middleware/auth');
+const { sendPasswordReset } = require('../services/emailService');
 
 const hashPassword = (password) => bcrypt.hash(password, 12);
 
@@ -49,6 +50,7 @@ const usuariosController = {
     async getByRut(req, res) {
         try {
             const { rut } = req.params;
+            if (!rutValido(rut)) return res.status(400).json({ mensaje: 'El RUT no es válido.' });
             const usuario = await usuariosService.getByRut(rut);
             if (!usuario) {
                 return res.status(404).json({ error: 'No encontrado', mensaje: `No se encontró usuario con RUT ${rut}.` });
@@ -57,6 +59,16 @@ const usuariosController = {
         } catch (error) {
             console.error('Error en usuariosController.getByRut:', error);
             res.status(500).json({ error: 'Error al buscar por RUT', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
+        }
+    },
+
+    async logout(req, res) {
+        try {
+            await usuariosService.revokeSessions(req.user.id);
+            return res.json({ mensaje: 'La sesión se cerró correctamente.' });
+        } catch (error) {
+            console.error('Error al cerrar sesión:', error);
+            return res.status(500).json({ mensaje: 'No se pudo cerrar la sesión en el servidor.' });
         }
     },
 
@@ -161,18 +173,68 @@ const usuariosController = {
             if (passwordIsLegacy) {
                 await usuariosService.updatePassword(usuario.ID_USUARIO, await hashPassword(password));
             }
+            const usuarioSesion = passwordIsLegacy
+                ? await usuariosService.getByIdentificador(identificador.trim())
+                : usuario;
 
             // Sanitizar respuesta (no enviar contraseña hasheada)
-            const { PASSWORD_HASH, ...datosUsuario } = usuario;
+            const { PASSWORD_HASH, TOKEN_VERSION, ...datosUsuario } = usuario;
 
             res.json({
                 mensaje: 'Inicio de sesión exitoso',
                 usuario: datosUsuario,
-                token: createToken(usuario)
+                token: createToken(usuarioSesion)
             });
         } catch (error) {
             console.error('Error en usuariosController.login:', error);
             res.status(500).json({ error: 'Error durante el inicio de sesión', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
+        }
+    },
+
+    // POST /api/usuarios/recuperar-clave
+    async solicitarRecuperacion(req, res) {
+        const { identificador } = req.body || {};
+        if (typeof identificador !== 'string' || !identificador.trim() || identificador.length > 150) {
+            return res.status(400).json({ mensaje: 'Ingresa un correo o RUT válido.' });
+        }
+        try {
+            const usuario = await usuariosService.getByIdentificador(identificador.trim());
+            if (usuario?.ESTADO_ACTIVO) {
+                const token = crypto.randomBytes(32).toString('hex');
+                const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+                const expiraEn = new Date(Date.now() + 20 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+                await usuariosService.createPasswordReset(usuario.ID_USUARIO, tokenHash, expiraEn);
+                const link = new URL('/restablecer-clave', process.env.FRONTEND_URL || 'http://localhost:4000');
+                link.searchParams.set('token', token);
+                setImmediate(() => sendPasswordReset(usuario.EMAIL, link.toString()).catch(async (error) => {
+                    await usuariosService.deletePasswordReset(tokenHash).catch((deleteError) => console.error('No se pudo limpiar el token de recuperación:', deleteError.message));
+                    console.error('No se pudo enviar el correo de recuperación:', error.message);
+                }));
+            }
+            return res.json({ mensaje: 'Si los datos corresponden a una cuenta activa, recibirá un enlace de recuperación.' });
+        } catch (error) {
+            console.error('Error al solicitar recuperación:', error);
+            return res.status(500).json({ mensaje: 'No se pudo procesar la solicitud. Intente nuevamente.' });
+        }
+    },
+
+    // POST /api/usuarios/restablecer-clave
+    async restablecerClave(req, res) {
+        const { token, password } = req.body || {};
+        if (typeof token !== 'string' || !/^[a-f0-9]{64}$/i.test(token)) {
+            return res.status(400).json({ mensaje: 'El enlace de recuperación no es válido o expiró.' });
+        }
+        if (typeof password !== 'string' || password.length < 8 || Buffer.byteLength(password, 'utf8') > 72) {
+            return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 8 caracteres y no superar 72 bytes.' });
+        }
+        try {
+            const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+            const actualizado = await usuariosService.consumePasswordReset(tokenHash, await hashPassword(password));
+            if (!actualizado) return res.status(400).json({ mensaje: 'El enlace de recuperación no es válido o expiró.' });
+            return res.json({ mensaje: 'La contraseña se actualizó correctamente. Inicie sesión nuevamente.' });
+        } catch (error) {
+            console.error('Error al restablecer contraseña:', error);
+            return res.status(500).json({ mensaje: 'No se pudo actualizar la contraseña. Intente nuevamente.' });
         }
     },
 
@@ -223,7 +285,7 @@ const usuariosController = {
             const { id } = req.params;
             const { activo } = req.body;
 
-            if (activo === undefined) {
+            if (typeof activo !== 'boolean') {
                 return res.status(400).json({ error: 'Validación', mensaje: 'Debe especificar el nuevo estado activo (true/false).' });
             }
 

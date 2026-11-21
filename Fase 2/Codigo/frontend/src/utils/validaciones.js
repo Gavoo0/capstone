@@ -4,12 +4,15 @@
 
 // Deja solo números y K: "12.345.678-k" -> "12345678K"
 export const limpiarRut = (texto) => {
-  return String(texto || "").replace(/[^0-9kK]/g, "").toUpperCase();
+  return String(texto || "").replace(/[.\-\s]/g, "").toUpperCase();
 };
+
+const formatoRutValido = (texto) => /^(?:\d{1,2}(?:\.\d{3}){2}|\d{7,8})-?[0-9kK]$/i.test(String(texto || "").trim());
 
 // Valida el RUT chileno con el dígito verificador (módulo 11)
 // Acepta "12.345.678-5", "12345678-5" o "123456785"
 export const rutValido = (texto) => {
+  if (!formatoRutValido(texto)) return false;
   const limpio = limpiarRut(texto);
   if (limpio.length < 8 || limpio.length > 9) {
     return false;
@@ -47,6 +50,9 @@ export const normalizarRut = (texto) => {
 
 // Formato para mostrar mientras se escribe: "12.345.678-5"
 export const formatearRut = (texto) => {
+  const original = String(texto || "");
+  if (!/^[0-9kK]*$/.test(original) && !/^(?:\d{1,2}(?:\.\d{3}){2}|\d{7,8})-?[0-9kK]$/i.test(original.trim())) return original;
+  if (limpiarRut(original).length > 9) return original;
   const limpio = limpiarRut(texto).slice(0, 9);
   if (limpio.length <= 1) {
     return limpio;

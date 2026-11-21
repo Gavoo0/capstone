@@ -15,6 +15,8 @@ export const crearUsuario = (usuario) => {
   return api.post("/usuarios", usuario);
 };
 
+export const buscarUsuarioPorRut = (rut) => api.get(`/usuarios/rut/${encodeURIComponent(rut)}`);
+
 export const editarUsuario = (id, usuario) => {
   return api.put(`/usuarios/${id}`, usuario);
 };

@@ -64,6 +64,7 @@ const bloqueosFlotaController = {
                     clasesAfectadas: error.conflictos
                 });
             }
+            if (error.status) return res.status(error.status).json({ error: 'Validación', mensaje: error.message });
             console.error('Error en bloqueosFlotaController.create:', error);
             res.status(500).json({ error: 'Error al crear bloqueo', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
@@ -93,6 +94,7 @@ const bloqueosFlotaController = {
             if (error.conflictos) {
                 return res.status(409).json({ error: 'Conflicto de agenda', mensaje: error.message, clasesAfectadas: error.conflictos });
             }
+            if (error.status) return res.status(error.status).json({ error: 'Validación', mensaje: error.message });
             console.error('Error en bloqueosFlotaController.update:', error);
             res.status(500).json({ error: 'Error al actualizar bloqueo', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }

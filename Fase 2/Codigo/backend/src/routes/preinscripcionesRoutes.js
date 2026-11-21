@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const controller = require('../controllers/preinscripcionesController');
+const { preinscriptionLimiter } = require('../middleware/rateLimits');
 
-router.post('/', controller.create);
+router.post('/', preinscriptionLimiter, controller.create);
 
 module.exports = router;

@@ -82,7 +82,7 @@ const clasesPracticasController = {
     // POST /api/clases
     async agendar(req, res) {
         try {
-            const { idAlumno, idInstructor, idVehiculo, idSede, fecha, horaInicio, horaFin, observaciones, omitirValidacionAlumno } = req.body;
+            const { idAlumno, idInstructor, idVehiculo, idSede, fecha, horaInicio, horaFin, observaciones } = req.body;
 
             if (!idAlumno || !idInstructor || !idVehiculo || !idSede || !fecha || !horaInicio || !horaFin) {
                 return res.status(400).json({
@@ -99,8 +99,7 @@ const clasesPracticasController = {
                 fecha,
                 horaInicio,
                 horaFin,
-                observaciones,
-                omitirValidacionAlumno: Boolean(omitirValidacionAlumno)
+                observaciones
             });
 
             res.status(201).json(nuevaClase);
@@ -123,7 +122,7 @@ const clasesPracticasController = {
             const { id } = req.params;
             const { estado, observaciones } = req.body;
 
-            if (!estado) {
+            if (typeof estado !== 'string' || !estado.trim()) {
                 return res.status(400).json({ error: 'Validación', mensaje: 'Debe especificar el nuevo estado.' });
             }
 
@@ -134,6 +133,7 @@ const clasesPracticasController = {
 
             res.json(claseActualizada);
         } catch (error) {
+            if (error.status) return res.status(error.status).json({ error: 'Validación', mensaje: error.message });
             console.error('Error en clasesPracticasController.cambiarEstado:', error);
             res.status(500).json({ error: 'Error al cambiar estado de clase', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
@@ -152,6 +152,7 @@ const clasesPracticasController = {
 
             res.json({ mensaje: 'Clase cancelada exitosamente.', clase: claseCancelada });
         } catch (error) {
+            if (error.status) return res.status(error.status).json({ error: 'Regla de negocio no cumplida', mensaje: error.message });
             console.error('Error en clasesPracticasController.cancelar:', error);
             res.status(500).json({ error: 'Error al cancelar clase', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
         }
@@ -175,7 +176,7 @@ const clasesPracticasController = {
         } catch (error) {
             if (error.status) {
                 return res.status(error.status).json({
-                    error: 'Conflicto de horario',
+                    error: error.status === 409 ? 'Conflicto de horario' : 'Regla de negocio no cumplida',
                     mensaje: error.message
                 });
             }

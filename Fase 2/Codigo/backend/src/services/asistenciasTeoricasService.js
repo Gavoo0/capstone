@@ -74,6 +74,8 @@ const asistenciasTeoricasService = {
         try {
             await connection.beginTransaction();
 
+            await connection.query('SELECT ID_USUARIO FROM alumnos_detalle WHERE ID_USUARIO = ? FOR UPDATE', [idAlumno]);
+
             const [result] = await connection.query(
                 `INSERT INTO asistencias_teoricas (ID_ALUMNO, ID_INSTRUCTOR, NOMBRE_BLOQUE, FECHA, ESTADO)
                  VALUES (?, ?, ?, ?, ?)`,
@@ -108,6 +110,10 @@ const asistenciasTeoricasService = {
         try {
             await connection.beginTransaction();
 
+            for (const idAlumno of [...new Set(asistenciasList.map((item) => item.idAlumno))].sort((a, b) => a - b)) {
+                await connection.query('SELECT ID_USUARIO FROM alumnos_detalle WHERE ID_USUARIO = ? FOR UPDATE', [idAlumno]);
+            }
+
             for (const item of asistenciasList) {
                 // item: { idAlumno, estado }
                 await connection.query(
@@ -131,13 +137,26 @@ const asistenciasTeoricasService = {
 
     // Eliminar asistencia y recalcular
     async delete(idAsistencia) {
-        const [rows] = await pool.query('SELECT ID_ALUMNO FROM asistencias_teoricas WHERE ID_ASISTENCIA = ?', [idAsistencia]);
-        if (rows.length === 0) return false;
-
-        const idAlumno = rows[0].ID_ALUMNO;
-        await pool.query('DELETE FROM asistencias_teoricas WHERE ID_ASISTENCIA = ?', [idAsistencia]);
-        await this.recalcularPorcentajeAsistencia(idAlumno);
-        return true;
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            const [rows] = await connection.query('SELECT ID_ALUMNO FROM asistencias_teoricas WHERE ID_ASISTENCIA = ? FOR UPDATE', [idAsistencia]);
+            if (!rows.length) {
+                await connection.rollback();
+                return false;
+            }
+            const idAlumno = rows[0].ID_ALUMNO;
+            await connection.query('SELECT ID_USUARIO FROM alumnos_detalle WHERE ID_USUARIO = ? FOR UPDATE', [idAlumno]);
+            await connection.query('DELETE FROM asistencias_teoricas WHERE ID_ASISTENCIA = ?', [idAsistencia]);
+            await this.recalcularPorcentajeAsistencia(idAlumno, connection);
+            await connection.commit();
+            return true;
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     }
 };
 

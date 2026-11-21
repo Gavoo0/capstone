@@ -1,8 +1,12 @@
 const router = require('express').Router();
 const controller = require('../controllers/usuariosController');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
+const { loginIpLimiter, loginAccountLimiter, recoveryLimiter } = require('../middleware/rateLimits');
 
-router.post('/login', controller.login);
+router.post('/login', loginIpLimiter, loginAccountLimiter, controller.login);
+router.post('/recuperar-clave', recoveryLimiter, controller.solicitarRecuperacion);
+router.post('/restablecer-clave', recoveryLimiter, controller.restablecerClave);
+router.post('/logout', authenticate, controller.logout);
 router.use(authenticate, authorizeRoles('ADMINISTRADOR'));
 router.get('/rut/:rut', controller.getByRut);
 router.patch('/:id/estado', controller.toggleEstado);

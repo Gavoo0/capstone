@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { rutValido } = require('../utils/validaciones');
 
 const usuariosService = {
     // Listar usuarios con filtros opcionales (por rol, sede, estado activo)
@@ -80,7 +81,8 @@ const usuariosService = {
                 r.NOMBRE_ROL,
                 u.ID_SEDE,
                 s.NOMBRE AS NOMBRE_SEDE,
-                u.ESTADO_ACTIVO
+                u.ESTADO_ACTIVO,
+                u.TOKEN_VERSION
             FROM usuarios u
             LEFT JOIN roles r ON u.ID_ROL = r.ID_ROL
             LEFT JOIN sedes s ON u.ID_SEDE = s.ID_SEDE
@@ -102,6 +104,7 @@ const usuariosService = {
             return this.getByEmail(valor);
         }
 
+        if (!rutValido(valor)) return null;
         const rutNormalizado = valor.replace(/[.\-\s]/g, '').toLowerCase();
         const query = `
             SELECT
@@ -115,7 +118,8 @@ const usuariosService = {
                 r.NOMBRE_ROL,
                 u.ID_SEDE,
                 s.NOMBRE AS NOMBRE_SEDE,
-                u.ESTADO_ACTIVO
+                u.ESTADO_ACTIVO,
+                u.TOKEN_VERSION
             FROM usuarios u
             LEFT JOIN roles r ON u.ID_ROL = r.ID_ROL
             LEFT JOIN sedes s ON u.ID_SEDE = s.ID_SEDE
@@ -127,6 +131,7 @@ const usuariosService = {
 
     // Obtener usuario por RUT
     async getByRut(rut) {
+        const rutNormalizado = String(rut || '').replace(/[.\-\s]/g, '').toUpperCase();
         const query = `
             SELECT 
                 u.ID_USUARIO,
@@ -142,10 +147,62 @@ const usuariosService = {
             FROM usuarios u
             LEFT JOIN roles r ON u.ID_ROL = r.ID_ROL
             LEFT JOIN sedes s ON u.ID_SEDE = s.ID_SEDE
-            WHERE u.RUT = ?
+            WHERE REPLACE(REPLACE(REPLACE(UPPER(u.RUT), '.', ''), '-', ''), ' ', '') = ?
         `;
-        const [rows] = await pool.query(query, [rut]);
+        const [rows] = await pool.query(query, [rutNormalizado]);
         return rows[0] || null;
+    },
+
+    async createPasswordReset(idUsuario, tokenHash, expiraEn) {
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            await connection.query('DELETE FROM password_reset_tokens WHERE EXPIRA_EN <= UTC_TIMESTAMP() OR USADO_EN IS NOT NULL');
+            await connection.query('DELETE FROM password_reset_tokens WHERE ID_USUARIO = ? AND USADO_EN IS NULL', [idUsuario]);
+            await connection.query(
+                'INSERT INTO password_reset_tokens (ID_USUARIO, TOKEN_HASH, EXPIRA_EN) VALUES (?, ?, ?)',
+                [idUsuario, tokenHash, expiraEn]
+            );
+            await connection.commit();
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    },
+
+    async consumePasswordReset(tokenHash, passwordHash) {
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+            const [tokens] = await connection.query(
+                `SELECT ID_USUARIO FROM password_reset_tokens
+                 WHERE TOKEN_HASH = ? AND USADO_EN IS NULL AND EXPIRA_EN > UTC_TIMESTAMP()
+                 FOR UPDATE`,
+                [tokenHash]
+            );
+            if (!tokens.length) {
+                await connection.rollback();
+                return false;
+            }
+            await connection.query(
+                'UPDATE usuarios SET PASSWORD_HASH = ?, TOKEN_VERSION = TOKEN_VERSION + 1 WHERE ID_USUARIO = ?',
+                [passwordHash, tokens[0].ID_USUARIO]
+            );
+            await connection.query('UPDATE password_reset_tokens SET USADO_EN = UTC_TIMESTAMP() WHERE TOKEN_HASH = ?', [tokenHash]);
+            await connection.commit();
+            return true;
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    },
+
+    async deletePasswordReset(tokenHash) {
+        await pool.query('DELETE FROM password_reset_tokens WHERE TOKEN_HASH = ?', [tokenHash]);
     },
 
     // Crear un nuevo usuario (con transacción si es alumno para crear alumnos_detalle)
@@ -197,7 +254,8 @@ const usuariosService = {
         if (fields.length === 0) return this.getById(idUsuario);
 
         values.push(idUsuario);
-        await pool.query(`UPDATE usuarios SET ${fields.join(', ')} WHERE ID_USUARIO = ?`, values);
+        const invalidaTokens = idRol !== undefined || estadoActivo !== undefined;
+        await pool.query(`UPDATE usuarios SET ${fields.join(', ')}${invalidaTokens ? ', TOKEN_VERSION = TOKEN_VERSION + 1' : ''} WHERE ID_USUARIO = ?`, values);
 
         return this.getById(idUsuario);
     },
@@ -205,8 +263,16 @@ const usuariosService = {
     // Actualizar contraseña
     async updatePassword(idUsuario, passwordHash) {
         const [result] = await pool.query(
-            'UPDATE usuarios SET PASSWORD_HASH = ? WHERE ID_USUARIO = ?',
+            'UPDATE usuarios SET PASSWORD_HASH = ?, TOKEN_VERSION = TOKEN_VERSION + 1 WHERE ID_USUARIO = ?',
             [passwordHash, idUsuario]
+        );
+        return result.affectedRows > 0;
+    },
+
+    async revokeSessions(idUsuario) {
+        const [result] = await pool.query(
+            'UPDATE usuarios SET TOKEN_VERSION = TOKEN_VERSION + 1 WHERE ID_USUARIO = ?',
+            [idUsuario]
         );
         return result.affectedRows > 0;
     },
@@ -214,7 +280,7 @@ const usuariosService = {
     // Activar o desactivar cuenta (Baja lógica)
     async toggleEstado(idUsuario, estadoActivo) {
         const [result] = await pool.query(
-            'UPDATE usuarios SET ESTADO_ACTIVO = ? WHERE ID_USUARIO = ?',
+            'UPDATE usuarios SET ESTADO_ACTIVO = ?, TOKEN_VERSION = TOKEN_VERSION + 1 WHERE ID_USUARIO = ?',
             [estadoActivo ? 1 : 0, idUsuario]
         );
         return result.affectedRows > 0;

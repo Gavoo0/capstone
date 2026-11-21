@@ -8,6 +8,7 @@ import {
   editarUsuario,
   cambiarEstadoUsuario,
   eliminarUsuario,
+  buscarUsuarioPorRut,
 } from "../../services/usuarioService";
 import { fetchSedes } from "../../services/sedeService";
 import { LARGO_MINIMO_CLAVE } from "../../services/recuperacionService";
@@ -140,6 +141,12 @@ function MantenedorUsuarios({ mostrarAlerta, onCambio }) {
         await editarUsuario(idEditando, usuarioFormateado);
         mostrarAlerta("success", "Usuario actualizado exitosamente");
       } else {
+        try {
+          await buscarUsuarioPorRut(usuarioFormateado.rut);
+          throw new Error("Ese RUT ya está registrado.");
+        } catch (error) {
+          if (error.estado !== 404) throw error;
+        }
         await crearUsuario({ ...usuarioFormateado, password: formData.password });
         mostrarAlerta("success", "Usuario creado exitosamente");
       }

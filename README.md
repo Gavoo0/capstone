@@ -21,7 +21,7 @@ Plataforma web para gestionar los alumnos, clases prácticas, asistencia, evalua
 
 ## Requisitos
 
-- Node.js 20 o superior y npm.
+- Node.js 20.19 o superior y npm.
 - MySQL 8 local o Docker Desktop con Docker Compose.
 - Git para descargar el proyecto.
 
@@ -36,6 +36,7 @@ Set-Location capstone
 # Crear el esquema, agregar la tabla de preinscripciones y cargar datos locales.
 cmd /c 'mysql --default-character-set=utf8mb4 -u root -p < "Fase 2\Evidencias Grupales\script_base_datos.sql"'
 cmd /c 'mysql --default-character-set=utf8mb4 -u root -p escuela_conductores < "Fase 2\Codigo\backend\database\init\002_preinscripciones.sql"'
+cmd /c 'mysql --default-character-set=utf8mb4 -u root -p escuela_conductores < "Fase 2\Codigo\backend\database\migrations\002_password_reset_tokens.sql"'
 cmd /c 'mysql --default-character-set=utf8mb4 -u root -p escuela_conductores < "Fase 2\Codigo\database\datos_prueba.sql"'
 
 # Instalar frontend y backend; el backend compila el frontend al iniciar.
@@ -48,11 +49,15 @@ Copy-Item .env.example .env
 
 Si la base ya tenía una tabla `preinscripciones` con el formato anterior, no ejecutes de nuevo el inicializador; aplica una sola vez `Fase 2/Codigo/backend/database/migrations/001_preinscripciones_campos_contacto.sql` antes de importar los datos de prueba.
 
+Si ya tienes la base creada, aplica una sola vez `Fase 2/Codigo/backend/database/migrations/002_password_reset_tokens.sql` para agregar la invalidación de sesiones y los tokens de recuperación. En una base nueva, el inicializador `003_password_reset_tokens.sql` se ejecuta con el resto de scripts de creación.
+
 Edita `Fase 2/Codigo/backend/.env`: configura `DB_PORT=3306` para MySQL local y define `JWT_SECRET` con una cadena aleatoria de al menos 32 caracteres. Para generarla con Node:
 
 ```powershell
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
+
+Para probar recuperación local sin configurar correo, el backend imprime el enlace en su terminal. En producción establece `NODE_ENV=production` y configura `FRONTEND_URL`, `ALLOWED_ORIGINS`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_SECURE`, `MAIL_FROM` y, si el proveedor lo requiere, `MAIL_USER` y `MAIL_PASSWORD`. El servidor no inicia en producción si faltan las credenciales de MySQL, si el usuario de MySQL es `root` o si no puede verificar MySQL o SMTP.
 
 Luego, desde `Fase 2/Codigo/backend`, ejecuta:
 
@@ -86,7 +91,13 @@ Son credenciales de desarrollo local. Al importar de nuevo el SQL se restaura es
 
 Los recorridos de landing y preinscripción, autenticación por roles, paneles, agenda, control de conflictos, asistencia, evaluaciones, mantenedores, certificado de avance y autogestión por enlace están implementados. Los flujos principales de API se verificaron contra MySQL local.
 
-Para desplegar en Internet, configura secretos y una contraseña segura para MySQL, limita el origen de CORS, agrega límite de intentos al login y define revocación de sesiones. En desarrollo, Docker permite root sin contraseña y los JWT no se revocan inmediatamente al cerrar sesión.
+El backend valida los RUT y los intervalos de agenda en el servidor, serializa las escrituras de agenda mediante un bloqueo MySQL compartido, limita intentos de login y preinscripción, y revoca todas las sesiones de una cuenta al cerrar sesión, cambiar contraseña, rol o estado. El endpoint `/api/ready` confirma que MySQL está disponible; `/api/health` solo informa que el proceso está vivo.
+
+El bloqueo MySQL serializa las escrituras de agenda por simplicidad y consistencia; para varias sedes con alto volumen conviene reemplazarlo por bloqueos separados por recurso. Los límites de intentos usan memoria del proceso: con varias instancias, configúralos también en el proxy o gateway compartido.
+
+Docker Compose configura MySQL para desarrollo local y publica el puerto solo en `127.0.0.1`; no es una configuración de producción. Para producción usa una cuenta MySQL de mínimo privilegio, secretos propios, HTTPS y `TRUST_PROXY` solo cuando conozcas el número exacto de proxies delante de Express.
+
+Las comprobaciones automáticas se ejecutan con `npm test` en `Fase 2/Codigo/backend` y `npm run lint` más `npm run build` en `Fase 2/Codigo/frontend`. GitHub Actions ejecuta esos pasos en cada push y pull request.
 
 ## Estructura
 
