@@ -147,9 +147,9 @@ function IniciarSesion() {
                   <label htmlFor="clave" className="font-body text-sm text-[#0D0D0D]/70">
                     Contraseña
                   </label>
-                  <a href="#" className="font-body text-xs font-semibold text-[#0D0D0D]/60 hover:text-[#E31B23]">
+                  <Link to="/recuperar-clave" className="font-body text-xs font-semibold text-[#0D0D0D]/60 hover:text-[#E31B23]">
                     ¿Olvidaste tu contraseña?
-                  </a>
+                  </Link>
                 </div>
                 <div className="relative mt-1">
                   <input
