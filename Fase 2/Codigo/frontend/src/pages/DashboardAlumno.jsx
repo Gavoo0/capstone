@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { obtenerSesion } from "../services/sesion";
 import { fetchProgreso, obtenerEtiquetaPsicotecnico, ASISTENCIA_MINIMA } from "../services/alumnoService";
-import { fetchClases, confirmarClasePorToken, cancelarClasePorToken, estaConfirmada, obtenerEtiquetaClase } from "../services/claseService";
+import { fetchClases, confirmarClasePorToken, cancelarClasePorToken, estaConfirmada, obtenerEtiquetaClase, obtenerMensajeConfirmacion } from "../services/claseService";
 import { fetchAsistenciasAlumno } from "../services/asistenciaService";
 import { fetchEvaluacionesAlumno, formatearNota } from "../services/evaluacionService";
 import { fechaParaInput, fechaHoy, formatearFecha, formatearFechaLarga, formatearDiaCorto } from "../utils/fechas";
@@ -11,10 +11,12 @@ import useAlerta from "../hooks/useAlerta";
 import BarraPanel from "../components/panel/BarraPanel";
 import AlertaFlotante from "../components/panel/AlertaFlotante";
 import EtiquetaEstado from "../components/panel/EtiquetaEstado";
+import ReservaClase from "../components/alumno/ReservaClase";
 
 // Pestañas de la tarjeta web
 const PESTANAS = [
   { id: "resumen", titulo: "Mi avance" },
+  { id: "reservar", titulo: "Reservar clase" },
   { id: "historial", titulo: "Historial de clases" },
   { id: "evaluaciones", titulo: "Mis evaluaciones" },
 ];
@@ -157,6 +159,14 @@ function DashboardAlumno() {
     },
   ];
 
+  // Para reservar clases debe tener el psicotécnico aprobado y la asistencia mínima
+  let motivoBloqueoReserva = "";
+  if (!psicotecnicoAprobado) {
+    motivoBloqueoReserva = "Necesitas tener aprobada la evaluación psicotécnica.";
+  } else if (porcentajeAsistencia < ASISTENCIA_MINIMA) {
+    motivoBloqueoReserva = `Necesitas al menos ${ASISTENCIA_MINIMA}% de asistencia en las clases teóricas (llevas ${porcentajeAsistencia.toFixed(0)}%).`;
+  }
+
   // Etapa en la que va el alumno
   let etapaActual = "Curso completado";
   if (!psicotecnicoAprobado) {
@@ -228,16 +238,20 @@ function DashboardAlumno() {
       );
     }
 
+    const mensajeConfirmacion = obtenerMensajeConfirmacion(clase);
     return (
-      <div className="flex flex-wrap gap-3">
-        {!estaConfirmada(clase) && (
-          <button type="button" disabled={procesando} onClick={() => handleConfirmar(clase)} className="btn-amarillo btn-compacto">
-            Confirmar asistencia
+      <div>
+        {mensajeConfirmacion && <p className="mb-3 text-xs text-[#0D0D0D]/60">{mensajeConfirmacion}</p>}
+        <div className="flex flex-wrap gap-3">
+          {!estaConfirmada(clase) && (
+            <button type="button" disabled={procesando} onClick={() => handleConfirmar(clase)} className="btn-amarillo btn-compacto">
+              {clase.CONFIRMACION?.fase === 2 ? "Reconfirmar asistencia" : "Confirmar asistencia"}
+            </button>
+          )}
+          <button type="button" onClick={() => setIdCancelando(clase.ID_CLASE)} className="btn-contorno btn-compacto">
+            Cancelar clase
           </button>
-        )}
-        <button type="button" onClick={() => setIdCancelando(clase.ID_CLASE)} className="btn-contorno btn-compacto">
-          Cancelar clase
-        </button>
+        </div>
       </div>
     );
   };
@@ -306,7 +320,14 @@ function DashboardAlumno() {
                   <h2 className="font-display text-lg mb-4">Próxima clase práctica</h2>
                   {!proximaClase && (
                     <p className="font-body text-sm text-[#0D0D0D]/60 border border-dashed border-black/20 rounded-md px-4 py-6 text-center">
-                      No tienes clases prácticas agendadas. La escuela te contactará para coordinarlas.
+                      {motivoBloqueoReserva
+                        ? "Aún no tienes clases prácticas agendadas. Las podrás reservar cuando cumplas los requisitos."
+                        : "No tienes clases prácticas agendadas."}
+                      {!motivoBloqueoReserva && (
+                        <button type="button" onClick={() => setTab("reservar")} className="block mx-auto mt-3 btn-amarillo btn-compacto">
+                          Reservar una clase
+                        </button>
+                      )}
                     </p>
                   )}
                   {proximaClase && (
@@ -362,6 +383,15 @@ function DashboardAlumno() {
                   </section>
                 )}
               </div>
+            )}
+
+            {/* Pestaña: reservar clase */}
+            {tab === "reservar" && (
+              <ReservaClase
+                motivoBloqueo={motivoBloqueoReserva}
+                mostrarAlerta={mostrarAlerta}
+                onReservada={() => setRecargar(recargar + 1)}
+              />
             )}
 
             {/* Pestaña: historial */}

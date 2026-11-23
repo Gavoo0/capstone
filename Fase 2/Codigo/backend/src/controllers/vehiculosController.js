@@ -1,4 +1,25 @@
 const { vehiculosService } = require('../services');
+const { textoVehiculoValido, anioVehiculoValido } = require('../utils/validaciones');
+
+// Marca, modelo y año llegan por separado desde el formulario (se eligen de un catálogo).
+// Si no llegan, se acepta el modelo como texto libre (formato anterior).
+// MODELO queda como texto para mostrar, por ejemplo "Toyota Yaris 2022".
+const leerDatosModelo = ({ modelo, marca, modeloNombre, anio }) => {
+    const llegaronSeparados = marca !== undefined || modeloNombre !== undefined || anio !== undefined;
+    if (!llegaronSeparados) {
+        return { modelo };
+    }
+    if (!textoVehiculoValido(marca) || !textoVehiculoValido(modeloNombre)) {
+        return { error: 'Ingrese una marca y un modelo válidos.' };
+    }
+    if (!anioVehiculoValido(anio)) {
+        return { error: `El año debe estar entre 1990 y ${new Date().getFullYear() + 1}.` };
+    }
+    const marcaLimpia = marca.trim();
+    const modeloLimpio = modeloNombre.trim();
+    const anioNumero = Number(anio);
+    return { marca: marcaLimpia, modeloNombre: modeloLimpio, anio: anioNumero, modelo: `${marcaLimpia} ${modeloLimpio} ${anioNumero}` };
+};
 
 const vehiculosController = {
     // GET /api/vehiculos
@@ -77,9 +98,14 @@ const vehiculosController = {
     // POST /api/vehiculos
     async create(req, res) {
         try {
-            const { patente, modelo, transmision, idSede, estadoOperativo } = req.body;
+            const { patente, modelo, marca, modeloNombre, anio, transmision, idSede, estadoOperativo } = req.body;
 
-            if (!patente || !modelo || !transmision) {
+            const datosModelo = leerDatosModelo({ modelo, marca, modeloNombre, anio });
+            if (datosModelo.error) {
+                return res.status(400).json({ error: 'Validación', mensaje: datosModelo.error });
+            }
+
+            if (!patente || !datosModelo.modelo || !transmision) {
                 return res.status(400).json({
                     error: 'Validación',
                     mensaje: 'Los campos patente, modelo y transmisión son obligatorios.'
@@ -88,7 +114,10 @@ const vehiculosController = {
 
             const nuevoVehiculo = await vehiculosService.create({
                 patente,
-                modelo,
+                modelo: datosModelo.modelo,
+                marca: datosModelo.marca,
+                modeloNombre: datosModelo.modeloNombre,
+                anio: datosModelo.anio,
                 transmision,
                 idSede: idSede || null,
                 estadoOperativo: estadoOperativo || 'OPERATIVO'
@@ -108,11 +137,19 @@ const vehiculosController = {
     async update(req, res) {
         try {
             const { id } = req.params;
-            const { patente, modelo, transmision, idSede, estadoOperativo } = req.body;
+            const { patente, modelo, marca, modeloNombre, anio, transmision, idSede, estadoOperativo } = req.body;
+
+            const datosModelo = leerDatosModelo({ modelo, marca, modeloNombre, anio });
+            if (datosModelo.error) {
+                return res.status(400).json({ error: 'Validación', mensaje: datosModelo.error });
+            }
 
             const vehiculoActualizado = await vehiculosService.update(id, {
                 patente,
-                modelo,
+                modelo: datosModelo.modelo,
+                marca: datosModelo.marca,
+                modeloNombre: datosModelo.modeloNombre,
+                anio: datosModelo.anio,
                 transmision,
                 idSede,
                 estadoOperativo

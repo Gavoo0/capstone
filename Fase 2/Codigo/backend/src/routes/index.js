@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorizeRoles } = require('../middleware/auth');
 const sedesController = require('../controllers/sedesController');
 
 router.use('/preinscripciones', require('./preinscripcionesRoutes'));
@@ -15,5 +15,6 @@ router.use('/evaluaciones', require('./evaluacionesRoutes'));
 router.use('/roles', require('./rolesRoutes'));
 router.use('/sedes', require('./sedesRoutes'));
 router.use('/vehiculos', require('./vehiculosRoutes'));
+router.use('/catalogo-vehiculos', authorizeRoles('ADMINISTRADOR'), require('./catalogoVehiculosRoutes'));
 
 module.exports = router;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { fetchClasePorToken, confirmarClasePorToken, cancelarClasePorToken, estaConfirmada } from "../services/claseService";
+import { fetchClasePorToken, confirmarClasePorToken, cancelarClasePorToken, estaConfirmada, obtenerMensajeConfirmacion } from "../services/claseService";
 import { fechaParaInput, fechaHoy, formatearFechaLarga } from "../utils/fechas";
 
 // Página pública para confirmar o cancelar una clase mediante un token personal
@@ -135,6 +135,7 @@ function AutogestionClase() {
             ) : (
               <p className="text-sm">Por favor confirma tu asistencia para mantener tu cupo:</p>
             )}
+            {obtenerMensajeConfirmacion(clase) && <p className="mt-2 text-xs text-[#0D0D0D]/60">{obtenerMensajeConfirmacion(clase)}</p>}
             <div className="mt-4 flex flex-col gap-3">
               {!confirmada && (
                 <button type="button" onClick={handleConfirmar} disabled={procesando} className="btn-amarillo w-full">

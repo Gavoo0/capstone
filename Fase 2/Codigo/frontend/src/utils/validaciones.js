@@ -102,3 +102,14 @@ export const nombreValido = (texto) => {
   const nombre = String(texto || "").trim();
   return nombre.length >= 2 && nombre.length <= 60 && /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+(?:[ '-][A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*$/.test(nombre);
 };
+
+// Marca o modelo de vehículo: letras, números, espacios y . ' / + - (de 1 a 60 caracteres)
+export const textoVehiculoValido = (texto) => {
+  return typeof texto === "string" && /^[\p{L}\p{N}][\p{L}\p{N} .'/+-]{0,59}$/u.test(texto.trim());
+};
+
+// Año del vehículo: entero entre 1990 y el año que viene
+export const anioVehiculoValido = (anio) => {
+  const numero = Number(anio);
+  return anio !== "" && anio !== null && Number.isInteger(numero) && numero >= 1990 && numero <= new Date().getFullYear() + 1;
+};

@@ -98,12 +98,31 @@ app.get('/{*splat}', (req, res, next) => {
     res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
+// Cada 5 minutos libera las clases cuyo alumno no confirmó a tiempo (doble confirmación: 24 y 3 horas antes).
+// Se puede apagar con LIBERACION_AUTOMATICA=false.
+const MINUTOS_ENTRE_REVISIONES = 5;
+const iniciarLiberacionAutomatica = () => {
+    if (process.env.LIBERACION_AUTOMATICA === 'false') return;
+    const { clasesPracticasService } = require('./services');
+    const revisar = async () => {
+        try {
+            const liberadas = await clasesPracticasService.liberarClasesSinConfirmar();
+            if (liberadas > 0) console.log(`Se liberaron ${liberadas} clase(s) por falta de confirmación.`);
+        } catch (error) {
+            console.error('Error al liberar clases sin confirmar:', error.message);
+        }
+    };
+    revisar();
+    setInterval(revisar, MINUTOS_ENTRE_REVISIONES * 60 * 1000).unref();
+};
+
 // Verificar dependencias antes de aceptar tráfico; evitar publicar un proceso que no puede operar.
 const start = async () => {
     const dbReady = await testConnection();
     if (!dbReady) throw new Error('No se pudo iniciar: MySQL no está disponible.');
     if (process.env.NODE_ENV === 'production') await verifyEmailConnection();
     app.listen(PORT, () => console.log(`Servidor ejecutándose en el puerto ${PORT}`));
+    iniciarLiberacionAutomatica();
 };
 
 start().catch((error) => {

@@ -116,6 +116,46 @@ const clasesPracticasController = {
         }
     },
 
+    // GET /api/clases/disponibilidad?desde=AAAA-MM-DD&hasta=AAAA-MM-DD (solo alumnos, sobre su propia sede)
+    async getDisponibilidad(req, res) {
+        try {
+            const resultado = await clasesPracticasService.getBloquesDisponibles({
+                idAlumno: req.user.id,
+                desde: req.query.desde,
+                hasta: req.query.hasta
+            });
+            res.json(resultado);
+        } catch (error) {
+            if (error.status) {
+                return res.status(error.status).json({ error: 'Regla de negocio no cumplida', mensaje: error.message });
+            }
+            console.error('Error en clasesPracticasController.getDisponibilidad:', error);
+            res.status(500).json({ error: 'Error al consultar horarios', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
+        }
+    },
+
+    // POST /api/clases/solicitar (solo alumnos; el alumno sale del token, nunca del cuerpo)
+    async solicitar(req, res) {
+        try {
+            const { fecha, horaInicio, horaFin } = req.body;
+            if (!fecha || !horaInicio || !horaFin) {
+                return res.status(400).json({ error: 'Validación', mensaje: 'Debe indicar fecha, horaInicio y horaFin.' });
+            }
+
+            const clase = await clasesPracticasService.solicitarClase({ idAlumno: req.user.id, fecha, horaInicio, horaFin });
+            res.status(201).json(clase);
+        } catch (error) {
+            if (error.status) {
+                return res.status(error.status).json({
+                    error: error.status === 409 ? 'Conflicto de horario' : 'Regla de negocio no cumplida',
+                    mensaje: error.message
+                });
+            }
+            console.error('Error en clasesPracticasController.solicitar:', error);
+            res.status(500).json({ error: 'Error al reservar la clase', mensaje: 'Ocurrió un error interno. Intente nuevamente.' });
+        }
+    },
+
     // PATCH /api/clases/:id/estado
     async cambiarEstado(req, res) {
         try {
