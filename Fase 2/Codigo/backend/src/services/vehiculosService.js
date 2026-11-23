@@ -7,7 +7,10 @@ const vehiculosService = {
             SELECT 
                 v.ID_VEHICULO,
                 v.PATENTE,
+                v.MARCA,
+                v.MODELO_NOMBRE,
                 v.MODELO,
+                v.ANIO,
                 v.TRANSMISION,
                 v.ID_SEDE,
                 s.NOMBRE AS NOMBRE_SEDE,
@@ -44,7 +47,10 @@ const vehiculosService = {
             SELECT 
                 v.ID_VEHICULO,
                 v.PATENTE,
+                v.MARCA,
+                v.MODELO_NOMBRE,
                 v.MODELO,
+                v.ANIO,
                 v.TRANSMISION,
                 v.ID_SEDE,
                 s.NOMBRE AS NOMBRE_SEDE,
@@ -64,7 +70,10 @@ const vehiculosService = {
             SELECT 
                 v.ID_VEHICULO,
                 v.PATENTE,
+                v.MARCA,
+                v.MODELO_NOMBRE,
                 v.MODELO,
+                v.ANIO,
                 v.TRANSMISION,
                 v.ID_SEDE,
                 s.NOMBRE AS NOMBRE_SEDE,
@@ -78,22 +87,25 @@ const vehiculosService = {
     },
 
     // Registrar nuevo vehículo
-    async create({ patente, modelo, transmision, idSede = null, estadoOperativo = 'OPERATIVO' }) {
+    async create({ patente, modelo, marca = null, modeloNombre = null, anio = null, transmision, idSede = null, estadoOperativo = 'OPERATIVO' }) {
         const [result] = await pool.query(
-            `INSERT INTO vehiculos (PATENTE, MODELO, TRANSMISION, ID_SEDE, ESTADO_OPERATIVO) 
-             VALUES (?, ?, ?, ?, ?)`,
-            [patente.toUpperCase(), modelo, transmision, idSede, estadoOperativo]
+            `INSERT INTO vehiculos (PATENTE, MARCA, MODELO_NOMBRE, MODELO, ANIO, TRANSMISION, ID_SEDE, ESTADO_OPERATIVO) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [patente.toUpperCase(), marca, modeloNombre, modelo, anio, transmision, idSede, estadoOperativo]
         );
         return this.getById(result.insertId);
     },
 
     // Actualizar datos del vehículo
-    async update(idVehiculo, { patente, modelo, transmision, idSede, estadoOperativo }) {
+    async update(idVehiculo, { patente, modelo, marca, modeloNombre, anio, transmision, idSede, estadoOperativo }) {
         const fields = [];
         const values = [];
 
         if (patente !== undefined) { fields.push('PATENTE = ?'); values.push(patente.toUpperCase()); }
+        if (marca !== undefined) { fields.push('MARCA = ?'); values.push(marca); }
+        if (modeloNombre !== undefined) { fields.push('MODELO_NOMBRE = ?'); values.push(modeloNombre); }
         if (modelo !== undefined) { fields.push('MODELO = ?'); values.push(modelo); }
+        if (anio !== undefined) { fields.push('ANIO = ?'); values.push(anio); }
         if (transmision !== undefined) { fields.push('TRANSMISION = ?'); values.push(transmision); }
         if (idSede !== undefined) { fields.push('ID_SEDE = ?'); values.push(idSede); }
         if (estadoOperativo !== undefined) { fields.push('ESTADO_OPERATIVO = ?'); values.push(estadoOperativo); }
@@ -130,7 +142,10 @@ const vehiculosService = {
             SELECT 
                 v.ID_VEHICULO,
                 v.PATENTE,
+                v.MARCA,
+                v.MODELO_NOMBRE,
                 v.MODELO,
+                v.ANIO,
                 v.TRANSMISION,
                 v.ID_SEDE,
                 s.NOMBRE AS NOMBRE_SEDE

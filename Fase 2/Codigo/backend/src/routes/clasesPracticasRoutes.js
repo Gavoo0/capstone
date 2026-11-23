@@ -12,6 +12,9 @@ router.get('/', authenticate, (req, res, next) => {
     if (req.user.role === 'ALUMNO' && Number(req.query.idAlumno) === req.user.id) return next();
     return res.status(403).json({ mensaje: 'Solo puede consultar las clases de su propia cuenta.' });
 }, controller.getAll);
+// Reserva hecha por el propio alumno (va antes del filtro de administradores e instructores)
+router.get('/disponibilidad', authenticate, authorizeRoles('ALUMNO'), controller.getDisponibilidad);
+router.post('/solicitar', authenticate, authorizeRoles('ALUMNO'), controller.solicitar);
 router.use(authenticate, authorizeRoles('ADMINISTRADOR', 'INSTRUCTOR'));
 router.patch('/:id/estado', authorizeInstructorRecord('clases_practicas', 'ID_CLASE', 'ID_INSTRUCTOR'), controller.cambiarEstado);
 router.patch('/:id/cancelar', authorizeRoles('ADMINISTRADOR'), controller.cancelar);

@@ -3,6 +3,41 @@ const { pool } = require('../config/db');
 const alumnosService = require('./alumnosService');
 const { intervaloAgendaValido, fechaISO } = require('../utils/validaciones');
 const { withAgendaTransaction } = require('../utils/agendaTransaction');
+const reserva = require('../utils/reservaAlumno');
+const confirmacion = require('../utils/confirmacionClase');
+
+// Agrega a la clase el estado de su doble confirmación (ver utils/confirmacionClase.js)
+const conConfirmacion = (clase) => ({ ...clase, CONFIRMACION: confirmacion.evaluarConfirmacion({ ...clase, FECHA: clase.FECHA_TEXTO }) });
+
+const COLUMNAS_CONFIRMACION = `cp.AGENDADA_EL,
+                cp.CONFIRMACION_1,
+                cp.CONFIRMACION_2,
+                DATE_FORMAT(cp.FECHA, '%Y-%m-%d') AS FECHA_TEXTO`;
+
+// Vehículos, instructores, clases y bloqueos de una sede en un rango de fechas (para elegir cupos)
+const cargarRecursosSede = async (connection, idSede, desde, hasta) => {
+    const [vehiculos] = await connection.query(
+        "SELECT ID_VEHICULO FROM vehiculos WHERE ID_SEDE = ? AND ESTADO_OPERATIVO = 'OPERATIVO'", [idSede]);
+    const [instructores] = await connection.query(
+        `SELECT u.ID_USUARIO FROM usuarios u JOIN roles r ON r.ID_ROL = u.ID_ROL
+         WHERE u.ID_SEDE = ? AND u.ESTADO_ACTIVO = 1 AND r.NOMBRE_ROL = 'INSTRUCTOR'`, [idSede]);
+    const [clases] = await connection.query(
+        `SELECT ID_ALUMNO, ID_INSTRUCTOR, ID_VEHICULO, DATE_FORMAT(FECHA, '%Y-%m-%d') AS FECHA, HORA_INICIO, HORA_FIN, ESTADO
+         FROM clases_practicas WHERE FECHA BETWEEN ? AND ? AND ESTADO IN ('AGENDADA', 'CONFIRMADA')`, [desde, hasta]);
+    const [bloqueos] = await connection.query(
+        `SELECT ID_VEHICULO, ID_INSTRUCTOR, DATE_FORMAT(FECHA, '%Y-%m-%d') AS FECHA, HORA_INICIO, HORA_FIN
+         FROM bloqueos_flota WHERE FECHA BETWEEN ? AND ?`, [desde, hasta]);
+    return { vehiculos, instructores, clases, bloqueos };
+};
+
+const sedeDelAlumno = async (connection, idAlumno) => {
+    const [rows] = await connection.query('SELECT ID_SEDE FROM usuarios WHERE ID_USUARIO = ?', [idAlumno]);
+    const idSede = rows[0]?.ID_SEDE;
+    if (!idSede) {
+        throw Object.assign(new Error('Tu cuenta no tiene una sede asignada. Contacta a la administración.'), { status: 400 });
+    }
+    return idSede;
+};
 
 const ESTADOS_CLASE = new Set(['AGENDADA', 'CONFIRMADA', 'REALIZADA', 'INASISTENCIA', 'CANCELADA']);
 const idPositivo = (value) => Number.isSafeInteger(Number(value)) && Number(value) > 0;
@@ -57,6 +92,7 @@ const clasesPracticasService = {
                 cp.ESTADO,
                 cp.TOKEN_AUTOGESTION,
                 cp.OBSERVACIONES,
+                ${COLUMNAS_CONFIRMACION},
                 cp.CREADO_EN
             FROM clases_practicas cp
             JOIN usuarios ua ON cp.ID_ALUMNO = ua.ID_USUARIO
@@ -79,7 +115,7 @@ const clasesPracticasService = {
         query += ' ORDER BY cp.FECHA DESC, cp.HORA_INICIO ASC';
 
         const [rows] = await pool.query(query, params);
-        return rows;
+        return rows.map(conConfirmacion);
     },
 
     // Obtener clase por ID
@@ -107,6 +143,7 @@ const clasesPracticasService = {
                 cp.ESTADO,
                 cp.TOKEN_AUTOGESTION,
                 cp.OBSERVACIONES,
+                ${COLUMNAS_CONFIRMACION},
                 cp.CREADO_EN
             FROM clases_practicas cp
             JOIN usuarios ua ON cp.ID_ALUMNO = ua.ID_USUARIO
@@ -116,7 +153,7 @@ const clasesPracticasService = {
             WHERE cp.ID_CLASE = ?
         `;
         const [rows] = await pool.query(query, [idClase]);
-        return rows[0] || null;
+        return rows[0] ? conConfirmacion(rows[0]) : null;
     },
 
     // Buscar clase mediante token de autogestión
@@ -140,7 +177,8 @@ const clasesPracticasService = {
                 cp.HORA_FIN,
                 cp.ESTADO,
                 cp.TOKEN_AUTOGESTION,
-                cp.OBSERVACIONES
+                cp.OBSERVACIONES,
+                ${COLUMNAS_CONFIRMACION}
             FROM clases_practicas cp
             JOIN usuarios ua ON cp.ID_ALUMNO = ua.ID_USUARIO
             JOIN usuarios ui ON cp.ID_INSTRUCTOR = ui.ID_USUARIO
@@ -149,7 +187,7 @@ const clasesPracticasService = {
             WHERE cp.TOKEN_AUTOGESTION = ?
         `;
         const [rows] = await pool.query(query, [token]);
-        return rows[0] || null;
+        return rows[0] ? conConfirmacion(rows[0]) : null;
     },
 
     async cambiarEstadoPorToken(token, estado, motivo = null) {
@@ -163,15 +201,30 @@ const clasesPracticasService = {
     },
 
     async confirmarPorToken(token) {
-        const marcaConfirmacion = 'Asistencia confirmada por el alumno';
+        const actual = await this.getByToken(token);
+        if (!actual) return null;
+
+        // Clases antiguas (anteriores a la doble confirmación): se conserva la marca en las observaciones
+        if (!actual.AGENDADA_EL) {
+            const marca = 'Asistencia confirmada por el alumno';
+            const [result] = await pool.query(
+                `UPDATE clases_practicas SET OBSERVACIONES = ?
+                 WHERE TOKEN_AUTOGESTION = ? AND ESTADO = 'AGENDADA' AND COALESCE(OBSERVACIONES, '') <> ?`,
+                [marca, token, marca]
+            );
+            return { clase: await this.getByToken(token), actualizada: result.affectedRows > 0 };
+        }
+
+        const campos = actual.ESTADO === 'AGENDADA' ? confirmacion.registrarConfirmacion({ ...actual, FECHA: actual.FECHA_TEXTO }) : null;
+        if (!campos) return { clase: actual, actualizada: false };
+
+        // Si el proceso de liberación canceló la clase justo antes, el estado ya no es AGENDADA y no se actualiza nada
         const [result] = await pool.query(
-            `UPDATE clases_practicas SET ESTADO = 'AGENDADA', OBSERVACIONES = ?
-             WHERE TOKEN_AUTOGESTION = ? AND ESTADO = 'AGENDADA'
-               AND COALESCE(OBSERVACIONES, '') <> ?`,
-            [marcaConfirmacion, token, marcaConfirmacion]
+            `UPDATE clases_practicas SET CONFIRMACION_1 = ?, CONFIRMACION_2 = ?
+             WHERE TOKEN_AUTOGESTION = ? AND ESTADO = 'AGENDADA'`,
+            [campos.CONFIRMACION_1 ?? actual.CONFIRMACION_1 ?? null, campos.CONFIRMACION_2 ?? actual.CONFIRMACION_2 ?? null, token]
         );
-        const clase = await this.getByToken(token);
-        return clase ? { clase, actualizada: result.affectedRows > 0 } : null;
+        return { clase: await this.getByToken(token), actualizada: result.affectedRows > 0 };
     },
 
     async cancelarPorToken(token, motivo = 'Cancelada por el alumno') {
@@ -271,11 +324,90 @@ const clasesPracticasService = {
             if (!checkDisponibilidad.disponible) throw Object.assign(new Error(checkDisponibilidad.motivo), { status: 409 });
 
             const tokenAutogestion = crypto.randomUUID();
+            const datos = confirmacion.datosIniciales({ fecha, horaInicio, reservaElAlumno: false });
             const [result] = await connection.query(
                 `INSERT INTO clases_practicas
-                 (ID_ALUMNO, ID_INSTRUCTOR, ID_VEHICULO, ID_SEDE, FECHA, HORA_INICIO, HORA_FIN, ESTADO, TOKEN_AUTOGESTION, OBSERVACIONES)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 'AGENDADA', ?, ?)`,
-                [idAlumno, idInstructor, idVehiculo, idSede, fecha, horaInicio, horaFin, tokenAutogestion, observaciones]
+                 (ID_ALUMNO, ID_INSTRUCTOR, ID_VEHICULO, ID_SEDE, FECHA, HORA_INICIO, HORA_FIN, ESTADO, TOKEN_AUTOGESTION, OBSERVACIONES, AGENDADA_EL, CONFIRMACION_1, CONFIRMACION_2)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'AGENDADA', ?, ?, ?, ?, ?)`,
+                [idAlumno, idInstructor, idVehiculo, idSede, fecha, horaInicio, horaFin, tokenAutogestion, observaciones, datos.AGENDADA_EL, datos.CONFIRMACION_1, datos.CONFIRMACION_2]
+            );
+            return result.insertId;
+        });
+        return this.getById(idClase);
+    },
+
+    // Bloques que el alumno puede reservar en su sede entre dos fechas.
+    // Estado de cada bloque: DISPONIBLE, SIN_CUPO, TUYA (ya tiene una clase en ese horario) o NO_DISPONIBLE (muy pronto, muy lejos o fin de semana)
+    async getBloquesDisponibles({ idAlumno, desde, hasta }) {
+        if (!reserva.fechaTextoValida(desde) || !reserva.fechaTextoValida(hasta) || hasta < desde) {
+            throw Object.assign(new Error('Indique un rango de fechas válido (desde y hasta, formato AAAA-MM-DD).'), { status: 400 });
+        }
+        if (hasta > reserva.sumarDias(desde, reserva.DIAS_MAXIMOS_CONSULTA - 1)) {
+            throw Object.assign(new Error(`El rango no puede superar ${reserva.DIAS_MAXIMOS_CONSULTA} días.`), { status: 400 });
+        }
+
+        const idSede = await sedeDelAlumno(pool, idAlumno);
+        const recursos = await cargarRecursosSede(pool, idSede, desde, hasta);
+        const dias = [];
+        for (let fecha = desde; fecha <= hasta; fecha = reserva.sumarDias(fecha, 1)) {
+            const bloques = reserva.BLOQUES_HORARIOS.map(({ inicio, fin }) => {
+                let estado;
+                if (reserva.validarSolicitud({ fecha, horaInicio: inicio, horaFin: fin })) {
+                    estado = 'NO_DISPONIBLE';
+                } else if (recursos.clases.some((c) => c.ID_ALUMNO === idAlumno && c.FECHA === fecha && c.HORA_INICIO < fin && c.HORA_FIN > inicio)) {
+                    estado = 'TUYA';
+                } else if (reserva.buscarAsignacion({ ...recursos, fecha, horaInicio: inicio, horaFin: fin })) {
+                    estado = 'DISPONIBLE';
+                } else {
+                    estado = 'SIN_CUPO';
+                }
+                return { inicio, fin, estado };
+            });
+            dias.push({ fecha, bloques });
+        }
+        return { idSede, dias };
+    },
+
+    // El alumno reserva un bloque: el sistema le asigna un vehículo y un instructor libres de su sede.
+    // Se hace dentro del mismo bloqueo de agenda que usa el administrador, así dos reservas simultáneas no chocan.
+    async solicitarClase({ idAlumno, fecha, horaInicio, horaFin }) {
+        const problema = reserva.validarSolicitud({ fecha, horaInicio, horaFin });
+        if (problema) throw Object.assign(new Error(problema), { status: 400 });
+
+        const idClase = await withAgendaTransaction(async (connection) => {
+            await connection.query('SELECT ID_USUARIO FROM alumnos_detalle WHERE ID_USUARIO = ? FOR UPDATE', [idAlumno]);
+            const idSede = await sedeDelAlumno(connection, idAlumno);
+
+            const habilitado = await alumnosService.isHabilitadoParaPractica(idAlumno, 75.0, connection);
+            if (!habilitado.habilitado) {
+                throw Object.assign(new Error(`No puedes reservar clases todavía: ${habilitado.motivo}`), { status: 400 });
+            }
+
+            const hoy = reserva.ahoraEnChile().fecha;
+            const [[pendientes]] = await connection.query(
+                `SELECT COUNT(*) AS total FROM clases_practicas
+                 WHERE ID_ALUMNO = ? AND ESTADO IN ('AGENDADA', 'CONFIRMADA') AND FECHA >= ?`, [idAlumno, hoy]);
+            if (pendientes.total >= reserva.MAX_CLASES_PENDIENTES) {
+                throw Object.assign(new Error(`Ya tienes ${reserva.MAX_CLASES_PENDIENTES} clases pendientes. Cuando realices o canceles una podrás reservar otra.`), { status: 409 });
+            }
+
+            const recursos = await cargarRecursosSede(connection, idSede, fecha, fecha);
+            const asignacion = reserva.buscarAsignacion({ ...recursos, fecha, horaInicio, horaFin });
+            if (!asignacion) {
+                throw Object.assign(new Error('Ese bloque ya no tiene cupo disponible. Elige otro horario.'), { status: 409 });
+            }
+
+            await validarRecursos(connection, { idAlumno, idInstructor: asignacion.idInstructor, idVehiculo: asignacion.idVehiculo, idSede });
+            const chequeo = await this.verificarDisponibilidad({ idAlumno, ...asignacion, fecha, horaInicio, horaFin }, connection);
+            if (!chequeo.disponible) throw Object.assign(new Error(chequeo.motivo), { status: 409 });
+
+            // Como la eligió el propio alumno, la clase nace con su confirmación (ver utils/confirmacionClase.js)
+            const datos = confirmacion.datosIniciales({ fecha, horaInicio, reservaElAlumno: true });
+            const [result] = await connection.query(
+                `INSERT INTO clases_practicas
+                 (ID_ALUMNO, ID_INSTRUCTOR, ID_VEHICULO, ID_SEDE, FECHA, HORA_INICIO, HORA_FIN, ESTADO, TOKEN_AUTOGESTION, OBSERVACIONES, AGENDADA_EL, CONFIRMACION_1, CONFIRMACION_2)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'AGENDADA', ?, ?, ?, ?, ?)`,
+                [idAlumno, asignacion.idInstructor, asignacion.idVehiculo, idSede, fecha, horaInicio, horaFin, crypto.randomUUID(), null, datos.AGENDADA_EL, datos.CONFIRMACION_1, datos.CONFIRMACION_2]
             );
             return result.insertId;
         });
@@ -318,6 +450,36 @@ const clasesPracticasService = {
     },
 
     // Reprogramar fecha/hora de una clase existente
+    // Libera (cancela) las clases cuyo alumno no cumplió la doble confirmación a tiempo. Devuelve cuántas liberó.
+    // Se llama cada pocos minutos desde server.js. Cada clase se revisa de nuevo dentro del bloqueo de agenda,
+    // así una confirmación que llegó justo antes no se pierde.
+    async liberarClasesSinConfirmar(ahora = new Date()) {
+        const hoy = reserva.ahoraEnChile(ahora).fecha;
+        const [candidatas] = await pool.query(
+            `SELECT cp.ID_CLASE FROM clases_practicas cp
+             WHERE cp.ESTADO IN ('AGENDADA', 'CONFIRMADA') AND cp.AGENDADA_EL IS NOT NULL AND cp.FECHA BETWEEN ? AND ?`,
+            [hoy, reserva.sumarDias(hoy, 2)]
+        );
+
+        let liberadas = 0;
+        for (const { ID_CLASE: idClase } of candidatas) {
+            const liberada = await withAgendaTransaction(async (connection) => {
+                const [rows] = await connection.query(
+                    `SELECT ID_CLASE, ESTADO, HORA_INICIO, AGENDADA_EL, CONFIRMACION_1, CONFIRMACION_2,
+                            DATE_FORMAT(FECHA, '%Y-%m-%d') AS FECHA
+                     FROM clases_practicas WHERE ID_CLASE = ? FOR UPDATE`, [idClase]);
+                if (!rows[0] || !confirmacion.evaluarConfirmacion(rows[0], ahora).liberar) return false;
+                await connection.query(
+                    `UPDATE clases_practicas SET ESTADO = 'CANCELADA', OBSERVACIONES = ? WHERE ID_CLASE = ? AND ESTADO IN ('AGENDADA', 'CONFIRMADA')`,
+                    ['Cupo liberado automáticamente: el alumno no confirmó su asistencia a tiempo.', idClase]
+                );
+                return true;
+            });
+            if (liberada) liberadas += 1;
+        }
+        return liberadas;
+    },
+
     async reprogramarClase(idClase, { nuevaFecha, nuevaHoraInicio, nuevaHoraFin, nuevoIdInstructor, nuevoIdVehiculo }) {
         await withAgendaTransaction(async (connection) => {
             const actual = await this.getById(idClase);
@@ -339,8 +501,10 @@ const clasesPracticasService = {
             }, connection);
             if (!checkDisponibilidad.disponible) throw Object.assign(new Error(checkDisponibilidad.motivo), { status: 409 });
             await connection.query(
-                `UPDATE clases_practicas SET FECHA = ?, HORA_INICIO = ?, HORA_FIN = ?, ID_INSTRUCTOR = ?, ID_VEHICULO = ? WHERE ID_CLASE = ?`,
-                [fecha, horaInicio, horaFin, idInstructor, idVehiculo, idClase]
+                `UPDATE clases_practicas SET FECHA = ?, HORA_INICIO = ?, HORA_FIN = ?, ID_INSTRUCTOR = ?, ID_VEHICULO = ?,
+                        AGENDADA_EL = ?, CONFIRMACION_1 = NULL, CONFIRMACION_2 = NULL
+                 WHERE ID_CLASE = ?`,
+                [fecha, horaInicio, horaFin, idInstructor, idVehiculo, confirmacion.ahoraTexto(), idClase]
             );
         });
         return this.getById(idClase);

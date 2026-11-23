@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ModalFormulario from "./ModalFormulario";
 import ModalConfirmar from "./ModalConfirmar";
 import {
@@ -10,10 +10,20 @@ import {
   TRANSMISIONES,
 } from "../../services/vehiculoService";
 import { fetchSedes } from "../../services/sedeService";
+import { fetchMarcas, fetchModelos } from "../../services/catalogoVehiculoService";
+import { textoVehiculoValido, anioVehiculoValido } from "../../utils/validaciones";
+
+// Valor especial de los selects para escribir la marca o el modelo a mano
+const OTRO = "__otro__";
+const ANIO_MINIMO = 1990;
 
 const FORMULARIO_VACIO = {
   patente: "",
+  marca: "",
+  marcaOtra: "",
   modelo: "",
+  modeloOtro: "",
+  anio: "",
   transmision: "Manual",
   idSede: "",
   estadoOperativo: "OPERATIVO",
@@ -45,6 +55,12 @@ function MantenedorVehiculos({ mostrarAlerta, onCambio }) {
   const [showModal, setShowModal] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
+  // Catálogo de marcas y modelos
+  const [marcas, setMarcas] = useState([]);
+  const [modelos, setModelos] = useState({ recomendados: [], otros: [], fuenteExterna: true });
+  const [cargandoModelos, setCargandoModelos] = useState(false);
+  const consultaModelos = useRef(0); // Evita que una respuesta vieja pise a una más nueva
+
   // Eliminar
   const [vehiculoPendiente, setVehiculoPendiente] = useState(null);
   const [eliminando, setEliminando] = useState(false);
@@ -68,6 +84,19 @@ function MantenedorVehiculos({ mostrarAlerta, onCambio }) {
     cargarDatos();
   }, [recargar]);
 
+  // Cargar las marcas una sola vez; si falla, el formulario queda en modo manual
+  useEffect(() => {
+    const cargarMarcas = async () => {
+      try {
+        setMarcas(await fetchMarcas());
+      } catch (error) {
+        console.error("Error al cargar el catálogo de marcas:", error);
+      }
+    };
+
+    cargarMarcas();
+  }, []);
+
   const refrescarLista = () => {
     setRecargar(recargar + 1);
     onCambio();
@@ -77,40 +106,106 @@ function MantenedorVehiculos({ mostrarAlerta, onCambio }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Carga los modelos de una marca. Si llega "modeloInicial" (al editar), lo deja seleccionado
+  // o, si no está en el catálogo, lo pasa a "Otro modelo".
+  const cargarModelos = async (marca, modeloInicial = "") => {
+    const numeroConsulta = consultaModelos.current + 1;
+    consultaModelos.current = numeroConsulta;
+    setModelos({ recomendados: [], otros: [], fuenteExterna: true });
+
+    if (!marca || marca === OTRO) {
+      setCargandoModelos(false);
+      return;
+    }
+
+    setCargandoModelos(true);
+    try {
+      const resultado = await fetchModelos(marca);
+      if (numeroConsulta !== consultaModelos.current) return;
+      setModelos(resultado);
+      if (modeloInicial) {
+        const estaEnCatalogo = [...resultado.recomendados, ...resultado.otros].includes(modeloInicial);
+        setFormData((anterior) => ({
+          ...anterior,
+          modelo: estaEnCatalogo ? modeloInicial : OTRO,
+          modeloOtro: estaEnCatalogo ? "" : modeloInicial,
+        }));
+      }
+    } catch (error) {
+      if (numeroConsulta !== consultaModelos.current) return;
+      console.error("Error al cargar modelos:", error);
+      mostrarAlerta("danger", "No se pudo cargar el catálogo de modelos. Puedes escribir el modelo a mano.");
+      if (modeloInicial) {
+        setFormData((anterior) => ({ ...anterior, modelo: OTRO, modeloOtro: modeloInicial }));
+      }
+    } finally {
+      if (numeroConsulta === consultaModelos.current) setCargandoModelos(false);
+    }
+  };
+
+  const cambiarMarca = (e) => {
+    const marca = e.target.value;
+    setFormData({ ...formData, marca, marcaOtra: "", modelo: "", modeloOtro: "" });
+    cargarModelos(marca);
+  };
+
   const abrirCrear = () => {
+    cargarModelos("");
     setFormData(FORMULARIO_VACIO);
     setIdEditando(null);
     setShowModal(true);
   };
 
   const abrirEditar = (vehiculo) => {
+    // Vehículos antiguos no tienen marca/modelo/año separados: se deben completar al editar
+    const marca = vehiculo.MARCA || "";
+    const marcaEnCatalogo = marcas.includes(marca);
     setFormData({
       patente: vehiculo.PATENTE,
-      modelo: vehiculo.MODELO,
+      marca: marca && !marcaEnCatalogo ? OTRO : marca,
+      marcaOtra: marca && !marcaEnCatalogo ? marca : "",
+      modelo: "",
+      modeloOtro: marca && !marcaEnCatalogo ? vehiculo.MODELO_NOMBRE || "" : "",
+      anio: vehiculo.ANIO ? String(vehiculo.ANIO) : "",
       transmision: vehiculo.TRANSMISION,
       idSede: vehiculo.ID_SEDE ? String(vehiculo.ID_SEDE) : "",
       estadoOperativo: vehiculo.ESTADO_OPERATIVO,
     });
     setIdEditando(vehiculo.ID_VEHICULO);
     setShowModal(true);
+    cargarModelos(marcaEnCatalogo ? marca : "", vehiculo.MODELO_NOMBRE || "");
   };
 
   const cerrarModal = () => {
     setShowModal(false);
     setIdEditando(null);
     setFormData(FORMULARIO_VACIO);
+    cargarModelos("");
   };
 
   const guardarVehiculo = async () => {
     // Validar campos obligatorios
-    if (!formData.patente.trim() || !formData.modelo.trim() || !formData.transmision) {
-      mostrarAlerta("danger", "Completa patente, modelo y transmisión.");
+    const marca = (formData.marca === OTRO ? formData.marcaOtra : formData.marca).trim();
+    const modeloNombre = (formData.modelo === OTRO ? formData.modeloOtro : formData.modelo).trim();
+
+    if (!formData.patente.trim() || !marca || !modeloNombre || !formData.anio || !formData.transmision) {
+      mostrarAlerta("danger", "Completa patente, marca, modelo, año y transmisión.");
+      return;
+    }
+    if (!textoVehiculoValido(marca) || !textoVehiculoValido(modeloNombre)) {
+      mostrarAlerta("danger", "La marca y el modelo solo pueden llevar letras, números, espacios y . ' / + -");
+      return;
+    }
+    if (!anioVehiculoValido(formData.anio)) {
+      mostrarAlerta("danger", `El año debe estar entre ${ANIO_MINIMO} y ${new Date().getFullYear() + 1}.`);
       return;
     }
 
     const vehiculoFormateado = {
       patente: formData.patente.trim().toUpperCase(), // Patentes siempre en mayúscula
-      modelo: formData.modelo.trim(),
+      marca,
+      modeloNombre,
+      anio: Number(formData.anio),
       transmision: formData.transmision,
       idSede: formData.idSede ? Number(formData.idSede) : null,
       estadoOperativo: formData.estadoOperativo,
@@ -224,10 +319,61 @@ function MantenedorVehiculos({ mostrarAlerta, onCambio }) {
             </select>
           </div>
         </div>
-        <div>
-          <label htmlFor="v-modelo" className="campo-etiqueta">Modelo</label>
-          <input id="v-modelo" name="modelo" className="campo" placeholder="Toyota Yaris 2022" value={formData.modelo} onChange={handleChange} />
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="v-marca" className="campo-etiqueta">Marca</label>
+            <select id="v-marca" name="marca" className="campo" value={formData.marca} onChange={cambiarMarca}>
+              <option value="">Selecciona una marca</option>
+              {marcas.map((marca) => (
+                <option key={marca} value={marca}>{marca}</option>
+              ))}
+              <option value={OTRO}>Otra marca...</option>
+            </select>
+            {formData.marca === OTRO && (
+              <input name="marcaOtra" className="campo mt-2" placeholder="Escribe la marca" aria-label="Otra marca" value={formData.marcaOtra} onChange={handleChange} />
+            )}
+          </div>
+          <div>
+            <label htmlFor="v-modelo" className="campo-etiqueta">Modelo</label>
+            {formData.marca === OTRO ? (
+              <input id="v-modelo" name="modeloOtro" className="campo" placeholder="Escribe el modelo" value={formData.modeloOtro} onChange={(e) => setFormData({ ...formData, modelo: OTRO, modeloOtro: e.target.value })} />
+            ) : (
+              <select id="v-modelo" name="modelo" className="campo" value={formData.modelo} onChange={handleChange} disabled={!formData.marca || cargandoModelos}>
+                <option value="">{cargandoModelos ? "Cargando..." : formData.marca ? "Selecciona un modelo" : "Elige primero la marca"}</option>
+                {modelos.recomendados.length > 0 && (
+                  <optgroup label="Habituales en Chile">
+                    {modelos.recomendados.map((modelo) => (
+                      <option key={modelo} value={modelo}>{modelo}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {modelos.otros.length > 0 && (
+                  <optgroup label="Otros modelos">
+                    {modelos.otros.map((modelo) => (
+                      <option key={modelo} value={modelo}>{modelo}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {formData.marca && <option value={OTRO}>Otro modelo...</option>}
+              </select>
+            )}
+            {formData.marca !== OTRO && formData.modelo === OTRO && (
+              <input name="modeloOtro" className="campo mt-2" placeholder="Escribe el modelo" aria-label="Otro modelo" value={formData.modeloOtro} onChange={handleChange} />
+            )}
+          </div>
+          <div>
+            <label htmlFor="v-anio" className="campo-etiqueta">Año</label>
+            <select id="v-anio" name="anio" className="campo" value={formData.anio} onChange={handleChange}>
+              <option value="">Año</option>
+              {Array.from({ length: new Date().getFullYear() + 1 - ANIO_MINIMO + 1 }, (_, i) => new Date().getFullYear() + 1 - i).map((anio) => (
+                <option key={anio} value={anio}>{anio}</option>
+              ))}
+            </select>
+          </div>
         </div>
+        {!modelos.fuenteExterna && formData.marca && formData.marca !== OTRO && (
+          <p className="aviso-info">No se pudo consultar el catálogo externo; se muestran solo los modelos habituales. Si falta uno, usa "Otro modelo".</p>
+        )}
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="v-sede" className="campo-etiqueta">Sede</label>
