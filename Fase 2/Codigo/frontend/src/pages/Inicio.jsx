@@ -91,7 +91,7 @@ function Inicio() {
 
     // Validar nombre
     if (!nombreValido(nombre)) {
-      mostrarAlerta("danger", "Ingresa tu nombre completo, solo con letras.");
+      mostrarAlerta("danger", "Ingresa tu Nombre completo, solo con letras.");
       return;
     }
 
@@ -103,19 +103,19 @@ function Inicio() {
 
     // Validar correo
     if (!correoValido(correo)) {
-      mostrarAlerta("danger", "Ingresa un correo válido, por ejemplo nombre@correo.cl.");
+      mostrarAlerta("danger", "Ingresa un Correo válido, por ejemplo nombre@correo.cl.");
       return;
     }
 
     // Validar celular
     if (!celularValido(telefono)) {
-      mostrarAlerta("danger", "Ingresa un celular de 9 dígitos, por ejemplo 912345678.");
+      mostrarAlerta("danger", "Ingresa un Celular de 9 dígitos, por ejemplo 912345678.");
       return;
     }
 
     // Validar sede
     if (idSede === "") {
-      mostrarAlerta("danger", "Elige la sede donde quieres hacer tu curso.");
+      mostrarAlerta("danger", "Elige la Sede donde quieres hacer tu curso.");
       return;
     }
 

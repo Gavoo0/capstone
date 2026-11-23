@@ -194,7 +194,7 @@ function MatrizAgendamiento({ mostrarAlerta, onCambio, onIrABloqueos }) {
       {/* Título y acciones */}
       <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
         <div>
-          <h2 className="font-display text-2xl md:text-3xl font-bold">Agenda semanal</h2>
+          <h2 className="font-display text-2xl md:text-3xl font-bold">Agenda Semanal</h2>
           <p className="font-body text-sm text-[#0D0D0D]/60 mt-1 max-w-xl">
             Clases prácticas por vehículo y bloque horario. Los vehículos bloqueados por salida a examen no se pueden agendar.
           </p>

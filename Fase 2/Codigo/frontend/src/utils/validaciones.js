@@ -11,6 +11,7 @@ const formatoRutValido = (texto) => /^(?:\d{1,2}(?:\.\d{3}){2}|\d{7,8})-?[0-9kK]
 
 // Valida el RUT chileno con el dígito verificador (módulo 11)
 // Acepta "12.345.678-5", "12345678-5" o "123456785"
+// OJO: Al probar las inscripciones tiene que ser con un rut válido según el calculo.
 export const rutValido = (texto) => {
   if (!formatoRutValido(texto)) return false;
   const limpio = limpiarRut(texto);
@@ -51,12 +52,15 @@ export const normalizarRut = (texto) => {
 // Formato para mostrar mientras se escribe: "12.345.678-5"
 export const formatearRut = (texto) => {
   const original = String(texto || "");
-  if (!/^[0-9kK]*$/.test(original) && !/^(?:\d{1,2}(?:\.\d{3}){2}|\d{7,8})-?[0-9kK]$/i.test(original.trim())) return original;
-  if (limpiarRut(original).length > 9) return original;
-  const limpio = limpiarRut(texto).slice(0, 9);
-  if (limpio.length <= 1) {
-    return limpio;
+  const limpio = original.replace(/[^0-9kK]/g, "").toUpperCase();
+
+  // Mientras se escribe, no tratar el último dígito como verificador hasta
+  // que haya al menos 8 caracteres (7 para el cuerpo y 1 para el verificador).
+  if (limpio.length < 8) {
+    return limpio.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   }
+  if (limpio.length > 9) return original;
+
   const cuerpo = limpio.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return `${cuerpo}-${limpio.slice(-1)}`;
 };

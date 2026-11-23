@@ -18,7 +18,7 @@ import MantenedorBloqueos from "../components/admin/MantenedorBloqueos";
 
 // Secciones del menú del panel
 const SECCIONES = [
-  { id: "agenda", titulo: "Agenda semanal", icono: "🗓️" },
+  { id: "agenda", titulo: "Agenda Semanal", icono: "🗓️" },
   { id: "bloqueos", titulo: "Bloqueos de flota", icono: "⛔" },
   { id: "alumnos", titulo: "Alumnos", icono: "🎓" },
   { id: "vehiculos", titulo: "Vehículos", icono: "🚗" },

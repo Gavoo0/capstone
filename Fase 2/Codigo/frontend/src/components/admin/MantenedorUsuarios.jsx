@@ -102,30 +102,46 @@ function MantenedorUsuarios({ mostrarAlerta, onCambio }) {
   };
 
   const guardarUsuario = async () => {
-    // Validar campos obligatorios
-    if (!formData.rut.trim() || !formData.nombre.trim() || !formData.apellido.trim() || !formData.email.trim() || !formData.idRol) {
-      mostrarAlerta("danger", "Completa RUT, nombre, apellido, correo y rol.");
-      return;
+    const camposFaltantes = [];
+    if (!formData.rut.trim()) camposFaltantes.push("el RUT");
+    if (!formData.nombre.trim()) camposFaltantes.push("el nombre");
+    if (!formData.apellido.trim()) camposFaltantes.push("el apellido");
+    if (!formData.email.trim()) camposFaltantes.push("el correo");
+    if (!formData.idRol) camposFaltantes.push("el rol");
+    if (idEditando === null && !formData.password.trim()) camposFaltantes.push("la contraseña");
+
+    const erroresFormato = [];
+    if (formData.rut.trim() && !rutValido(formData.rut)) {
+      erroresFormato.push("el RUT (número o dígito verificador)");
+    }
+    if (formData.nombre.trim() && !nombreValido(formData.nombre)) {
+      erroresFormato.push("el nombre (usa solo letras)");
+    }
+    if (formData.apellido.trim() && !nombreValido(formData.apellido)) {
+      erroresFormato.push("el apellido (usa solo letras)");
+    }
+    if (formData.email.trim() && !correoValido(formData.email)) {
+      erroresFormato.push("el correo electrónico");
+    }
+    if (idEditando === null && formData.password.trim() && formData.password.length < LARGO_MINIMO_CLAVE) {
+      erroresFormato.push(`la contraseña (mínimo ${LARGO_MINIMO_CLAVE} caracteres)`);
     }
 
-    // Validar el formato de cada dato
-    if (!rutValido(formData.rut)) {
-      mostrarAlerta("danger", "El RUT no es válido. Revisa el número y el dígito verificador.");
-      return;
-    } else if (!nombreValido(formData.nombre) || !nombreValido(formData.apellido)) {
-      mostrarAlerta("danger", "El nombre y el apellido solo pueden tener letras.");
-      return;
-    } else if (!correoValido(formData.email)) {
-      mostrarAlerta("danger", "Ingresa un correo válido, por ejemplo nombre@correo.cl.");
-      return;
-    }
-
-    // La contraseña solo se pide al crear
-    if (idEditando === null && formData.password.length < LARGO_MINIMO_CLAVE) {
-      mostrarAlerta("danger", `La contraseña debe tener al menos ${LARGO_MINIMO_CLAVE} caracteres.`);
+    if (camposFaltantes.length || erroresFormato.length) {
+      const mensajes = [];
+      if (camposFaltantes.length) {
+        mensajes.push(camposFaltantes.length === 1
+          ? `Completa ${camposFaltantes[0]}.`
+          : `Completa estos campos: ${camposFaltantes.join(", ")}.`);
+      }
+      if (erroresFormato.length) {
+        mensajes.push(erroresFormato.length === 1
+          ? `Revisa ${erroresFormato[0]}.`
+          : `Revisa estos datos: ${erroresFormato.join(", ")}.`);
+      }
+      mostrarAlerta("danger", mensajes.join(" "));
       return;
     }
-
     const usuarioFormateado = {
       rut: normalizarRut(formData.rut),
       nombre: formData.nombre.trim(),
